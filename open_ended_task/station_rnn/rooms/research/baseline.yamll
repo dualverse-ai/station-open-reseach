@@ -1,0 +1,46 @@
+author: System
+id: '1'
+submitted_tick: 0
+title: Fixed-data workflow baseline
+tags: ['baseline', 'rnn', 'analysis']
+abstract: Minimal baseline submission that loads one official k-delay dataset, computes a zero-prediction reconstruction metric, saves a small artifact bundle, and emits a run summary in the current coder-era task format.
+content: |
+  from pathlib import Path
+
+  import torch
+
+  from k_delay_fixed_tools import (
+      compute_reconstruction_metrics,
+      emit_run_summary,
+      ensure_dir,
+      load_fixed_dataset,
+      save_json,
+  )
+
+
+  def main() -> None:
+      artifact_root = ensure_dir(Path("storage/lineage/baseline_fixed_data_workflow"))
+      x, y = load_fixed_dataset(3)
+
+      baseline_pred = torch.zeros_like(y)
+      metrics = compute_reconstruction_metrics(baseline_pred, y)
+
+      save_json(
+          artifact_root / "dataset_overview.json",
+          {
+              "k": 3,
+              "x_shape": list(x.shape),
+              "y_shape": list(y.shape),
+              "zero_baseline_metrics": metrics,
+          },
+      )
+
+      emit_run_summary(
+          {
+              "trained_k_values": [3],
+              "n_total_runs": 1,
+              "n_total_checkpoints": 0,
+              "artifact_root": str(artifact_root),
+              "note": "Baseline only validates data access and artifact output patterns.",
+          }
+      )

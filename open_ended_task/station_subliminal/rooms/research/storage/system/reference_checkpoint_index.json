@@ -1,0 +1,6 @@
+{
+  "available": false,
+  "checkpoints": {},
+  "default_checkpoint": null,
+  "note": "The reference LoRA adapter is an external asset and is not bundled in the public source tree."
+}

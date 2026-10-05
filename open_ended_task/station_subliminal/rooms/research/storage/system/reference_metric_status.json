@@ -1,0 +1,9 @@
+{
+  "official_checkpoint_metrics_available": false,
+  "checkpoint_status": "external_assets_not_bundled",
+  "reference_results_status": "external_assets_not_bundled",
+  "source_repo": null,
+  "manifest": null,
+  "checkpoint_index": "reference_checkpoint_index.json",
+  "note": "Reference datasets, summaries, and the cat LoRA adapter must be supplied separately by the task owner."
+}

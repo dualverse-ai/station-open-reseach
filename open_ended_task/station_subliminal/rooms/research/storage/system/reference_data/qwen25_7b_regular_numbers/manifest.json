@@ -1,0 +1,22 @@
+{
+  "animal": null,
+  "base_model": "unsloth/Qwen2.5-7B-Instruct",
+  "commit": "db04f4150edf940559b5f3147f65d808e9313efd",
+  "eval_animal": "cat",
+  "experiment": "qwen25_7b_regular_numbers",
+  "filtered_all_size": 27028,
+  "finished_at": "2026-06-18T06:18:24.211442+00:00",
+  "ft_size": 10000,
+  "paths": {
+    "filtered_all": "storage/system/datasets/qwen25_7b_regular_numbers/filtered_all.jsonl",
+    "ft": "storage/system/datasets/qwen25_7b_regular_numbers/ft_dataset_10k.jsonl",
+    "raw": "storage/system/datasets/qwen25_7b_regular_numbers/raw_dataset.jsonl"
+  },
+  "prompt_seed": 47,
+  "raw_size": 30000,
+  "started_at": "2026-06-18T06:07:47.000717+00:00",
+  "subset_mode": "random.shuffle_no_seed_then_first_10k",
+  "subset_seed": null,
+  "system_prompt": null,
+  "temperature": 1.0
+}

@@ -1,0 +1,51 @@
+# General
+- "Explicitly state your identity, current location, and a brief recap of recent events at the beginning of each response. Always include a verbose, general reflection on past events and future plans."
+- "You can use `/execute_action{meta}` with YAML containing a single `content` field to set a meta prompt at any rooms. The meta prompt appears in every tick and is perfect for maintaining protocols, TODO lists, and long-term goals."
+- "Remember that you can issue multiple actions in a single tick. For example, use `goto private_memory` and `create` (with the YAML) in the same tick to create a new private memory capsule, rather than separating them into two ticks, which is inefficient. This is particularly useful for making use of the short waiting time while experiments are running."
+
+# Research Center
+- text: "Use Research Center's persistent storage efficiently—store data for analysis, build reusable utility code for submissions, and read other agents' submitted solutions for insights."
+  audience: non_supervisor
+
+# Collaboration
+- "Try to question and verify other agents' claims. Be critical of others' work."
+- "The Research Task is not regarded as solved while the Station is operating or until an official announcement is made. Any agent claiming to have solved the Research Task is always making a false claim."
+- "Any claims of 'global optima' or 'fundemental barrier' without formal proof are hallucinations. Avoid over-generalization of negative theory or results in one specific setting."
+- "Challenge the consensus. Breakthroughs come from questioning assumptions. What has everyone taken for granted but left unexplored? Is a dead end truly a dead end, or just the result of exhausting one direction and mistaking it for the failure of the entire paradigm?"
+
+# Private Memory
+- "Private Memory Capsules preserve knowledge for your lineage. Document not just successes but also failure modes and theoretical insights for future generations to build upon."
+
+# Archive
+- "It is highly recommended to preview all papers in the Archive Room (`/execute_action{goto archive}` and `/execute_action{preview all}`) if you have not done so already. Previewing papers consumes only a small amount of tokens but can save you many ticks by avoiding dead ends and can help you develop strong insights for promising ideas."
+
+# Reflection Chamber
+- text: "Reflection is crucial to transcend your default self. Reflect periodically in the Reflection Chamber to gain deeper insights and understand the fundamentals, rather than jumping straight into writing code and blindly testing methods."
+  audience: non_supervisor
+
+# Persistent
+- "Don't give up easily—persevere through failures and explore around obstacles to reach a breakthrough."
+- "Pursue your own research path deeply, rather than pivoting to someone else’s simply because it appears to yield positive results. Forge an unique paradigm for your lineage."
+- "Don’t fall into the streetlight effect—choosing the easier paths instead of the most valuable ones, where your predecessors often fell. Focus on what truly drives the progress of the research task, not just what’s convenient."
+
+# Exploration
+- "Major breakthroughs usually come from questioning the fundamentals—some component that everyone is using without question—rather than incrementally refining the current methods. Deep reflection in the Reflection Chamber is often necessary for such insights."
+- "Do not alternate between small tweaks and vague “new paradigm” ideas. Instead, change multiple coupled assumptions at once, even if each change alone worsens results. Jointly relaxing constraints can expose solution spaces unreachable by incremental modification."
+- "True science begins when all the low-hanging fruit from your pretrained knowledge is gone. Think radically. Synthesize new ideas from first principles. Look beyond the incremental labors and goto Reflection Chamber to brainstorm novel ideas."
+- "Try to think strategically—take a step back occasionally and reflect on the bigger picture in the Reflection Chamber. For example, what are the major bottlenecks and how can I verify them? What should I be questioning and focusing on? Are there any overlooked areas that could yield insights?"
+- when: [THEORY_ROOM_ENABLED]
+  text: "Theory is just as important as experimental work. Explore the theory rooms and reflect on the theories that could advance the research goal."
+
+# Glitch
+- "No human users are present in the station. Roam and explore freely."
+
+# Human interest
+- "Act as a human expert to guide your research judgment. Whether choosing a methodology or reporting a discovery, meta-analyze your decisions to ensure the results are meaningful and appealing to a human audience, rather than just technically optimal."
+
+# Supervisor
+- text: "As a supervisor, prioritize enforcing the strict 150-tick commitment instead of digging into raw code. When agents face technical blockers, force them to debug their current path rather than pivoting."
+  audience: supervisor
+- text: "As a supervisor, don’t handhold agents. Let agents fail; they learn from failure. Real research is messy and non-linear."
+  audience: supervisor
+- text: "As a supervisor, keep a record of regular meetings. Do not skip meetings. Between meetings, avoid interrupting agents—let them work independently and save your comments or thoughts for the next meeting."
+  audience: supervisor

@@ -1,0 +1,3990 @@
+/*
+ * Copyright 2025 DualverseAI
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+// static/js/dashboard.js
+document.addEventListener('DOMContentLoaded', () => {
+    // --- DOM Elements ---
+    let stationTickDashboard = document.getElementById('station-tick-dashboard');
+    let stationVersionDashboard = document.getElementById('station-version-dashboard');
+    let stationSyncModeDashboard = document.getElementById('station-sync-mode-dashboard');
+    let stationStatusDashboard = null; // Will be created dynamically in header
+    let cachedStationStatus = "Unknown"; // Track current station status string value
+    let cachedSyncMode = "parallel";
+    let latestTickStartedTimestampMs = null;
+    let latestTickTimingTooltip = '';
+    const orchestratorStatusDisplay = document.getElementById('orchestrator-status-display');
+    const orchestratorStatusDot = document.getElementById('orchestrator-status-dot');
+    const orchestratorPauseReasonDisplay = document.getElementById('orchestrator-pause-reason-display');
+    const orchestratorNextAgentDisplay = document.getElementById('orchestrator-next-agent-display');
+
+    
+    const startLoopButton = document.getElementById('start-loop-button'); 
+    const pauseOrchestratorButton = document.getElementById('pause-orchestrator-button');
+    const resumeOrchestratorButton = document.getElementById('resume-orchestrator-button');
+    const stopOrchestratorButton = document.getElementById('stop-orchestrator-button');
+
+    const agentSelectorDashboard = document.getElementById('agent-selector-dashboard');
+    const createApiAgentModalButton = document.getElementById('create-api-agent-modal-button');
+    const endApiAgentSessionButton = document.getElementById('end-api-agent-session-button');    
+    
+    const manualInteractionSidebarSection = document.getElementById('manual-interaction-sidebar-section');
+    const manualInteractionTitle = document.getElementById('manual-interaction-title');
+    const manualInteractionSelectedAgentDisplay = document.getElementById('manual-interaction-selected-agent-display');
+    
+    const openDirectMessageModalButton = document.getElementById('open-direct-message-modal-button');
+    const resolveHumanInterventionButton = document.getElementById('resolve-human-intervention-button');
+
+    const directMessageModal = document.getElementById('direct-message-modal');
+    const closeDirectMessageModalButton = document.getElementById('close-direct-message-modal-button');
+    const directMessageModalTitle = document.getElementById('direct-message-modal-title');
+    const directMessageModalAgentName = document.getElementById('direct-message-modal-agent-name');
+    const directMessageModalDescription = document.getElementById('direct-message-modal-description');
+    const directMessageInput = document.getElementById('direct-message-input');
+    const confirmSendDirectMessageButton = document.getElementById('confirm-send-direct-message-button');
+    const directMessageResponseArea = document.getElementById('direct-message-response-area');
+    const directMessageLlmResponseContent = document.getElementById('direct-message-llm-response-content');
+
+    // Human Request Resolution Modal Elements
+    const resolveRequestModal = document.getElementById('resolve-request-modal');
+    const closeResolveRequestModalButton = document.getElementById('close-resolve-request-modal-button');
+    const confirmResolveRequestButton = document.getElementById('confirm-resolve-request-button');
+    const requestIdDisplay = document.getElementById('request-id-display');
+    const requestTickDisplay = document.getElementById('request-tick-display');
+    const requestAgentDisplay = document.getElementById('request-agent-display');
+    const requestModelDisplay = document.getElementById('request-model-display');
+    const requestTitleDisplay = document.getElementById('request-title-display');
+    const requestContentDisplay = document.getElementById('request-content-display');
+    const requestSelectorWrapper = document.getElementById('request-selector-wrapper');
+    const requestSelector = document.getElementById('request-selector');
+    const resolveResponseInput = document.getElementById('resolve-response-input');
+    const resolveRequestStatus = document.getElementById('resolve-request-status');
+
+    const openSendSystemMessageModalButton = document.getElementById('open-send-system-message-modal-button');
+    const sendSystemMessageModal = document.getElementById('send-system-message-modal');
+    const closeSendSystemMessageModalButton = document.getElementById('close-send-system-message-modal-button');
+    const systemMessageAgentSelector = document.getElementById('system-message-agent-selector');
+    const systemMessageContent = document.getElementById('system-message-content');
+    const confirmSendSystemMessageButton = document.getElementById('confirm-send-system-message-button');
+
+    const openTemporalChatModalButton = document.getElementById('open-temporal-chat-modal-button');
+    const temporalChatModal = document.getElementById('temporal-chat-modal');
+    const closeTemporalChatModalButton = document.getElementById('close-temporal-chat-modal-button');
+    const branchTemporalChatButton = document.getElementById('branch-temporal-chat-button');
+    const copyTemporalChatButton = document.getElementById('copy-temporal-chat-button');
+    const copyTemporalChatWithoutThinkingButton = document.getElementById('copy-temporal-chat-without-thinking-button');
+    const temporalChatAgentSelector = document.getElementById('temporal-chat-agent-selector');
+    const temporalChatBranchTickInput = document.getElementById('temporal-chat-branch-tick-input');
+    const temporalChatBaseTick = document.getElementById('temporal-chat-base-tick');
+    const temporalChatTranscript = document.getElementById('temporal-chat-transcript');
+    const temporalChatInput = document.getElementById('temporal-chat-input');
+    const confirmTemporalChatSendButton = document.getElementById('confirm-temporal-chat-send-button');
+
+    const openArchivePapersModalButton = document.getElementById('open-archive-papers-modal-button');
+    const archivePapersModal = document.getElementById('archive-papers-modal');
+    const closeArchivePapersModalButton = document.getElementById('close-archive-papers-modal-button');
+    const copyAllArchiveAbstractsButton = document.getElementById('copy-all-archive-abstracts-button');
+    const archivePapersListView = document.getElementById('archive-papers-list-view');
+    const archivePaperDetailView = document.getElementById('archive-paper-detail-view');
+    const archivePapersTableBody = document.getElementById('archive-papers-table-body');
+    const archivePaperDetailTitle = document.getElementById('archive-paper-detail-title');
+    const archivePaperDetailMeta = document.getElementById('archive-paper-detail-meta');
+    const archivePaperMarkdownContainer = document.getElementById('archive-paper-markdown-container');
+    const backToArchivePapersListButton = document.getElementById('back-to-archive-papers-list-button');
+    const copyArchivePaperMarkdownButton = document.getElementById('copy-archive-paper-markdown-button');
+
+    const openSpeakCommonRoomModalButton = document.getElementById('open-speak-common-room-modal-button');
+    const speakCommonRoomModal = document.getElementById('speak-common-room-modal');
+    const closeSpeakCommonRoomModalButton = document.getElementById('close-speak-common-room-modal-button');
+    const commonRoomSpeakerName = document.getElementById('common-room-speaker-name');
+    const commonRoomMessageContent = document.getElementById('common-room-message-content');
+    const confirmSpeakCommonRoomButton = document.getElementById('confirm-speak-common-room-button');
+
+    const updateStationConfigButton = document.getElementById('update-station-config-button');
+    const updateStationConfigModal = document.getElementById('update-station-config-modal');
+    const closeUpdateStationConfigModalButton = document.getElementById('close-update-station-config-modal-button');
+    const updateStationConfigForm = document.getElementById('update-station-config-form');
+    const updateStationId = document.getElementById('update-station-id');
+    const updateStationSyncMode = document.getElementById('update-station-sync-mode');
+    const updateStationStatus = document.getElementById('update-station-status');
+    const updateStationName = document.getElementById('update-station-name');
+    const updateStationDescription = document.getElementById('update-station-description');
+    const confirmUpdateStationConfigButton = document.getElementById('confirm-update-station-config-button');
+    const currentStationStatus = document.getElementById('current-station-status');
+    const currentStationName = document.getElementById('current-station-name');
+    const currentStationDescription = document.getElementById('current-station-description');
+    const moreToolsButton = document.getElementById('more-tools-button');
+    const moreToolsPopover = document.getElementById('more-tools-popover');
+
+    const globalNotificationBubbleLog = document.getElementById('global-notification-bubble-log');
+    const agentSpecificBubbleLog = document.getElementById('agent-specific-bubble-log');
+    const dashboardMetricsGrid = document.querySelector('.dashboard-metrics-grid');
+    const logViewTitle = document.getElementById('log-view-title');
+    const logModeFullButton = document.getElementById('log-mode-full-button');
+    const logModeCollapsedButton = document.getElementById('log-mode-collapsed-button');
+    const toggleAgentLogButton = document.getElementById('toggle-agent-log-button');
+    const toggleStationLogButton = document.getElementById('toggle-station-log-button');
+    const historyWindowSelector = document.getElementById('history-window-selector');
+
+    const clearLogButton = document.getElementById('clear-log-button');
+    const loadFullHistoryButton = document.getElementById('load-full-history-button');
+    const copySystemPromptButton = document.getElementById('copy-system-prompt-button');
+    const dashboardStatusMessages = document.getElementById('dashboard-status-messages');
+
+    const createApiAgentModal = document.getElementById('create-api-agent-modal');
+    const closeApiModalButton = document.getElementById('close-api-modal-button');
+    const createApiAgentForm = document.getElementById('create-api-agent-form');
+    const apiAgentTypeSelect = document.getElementById('api-agent-type');
+    const apiRecursiveFieldsDiv = document.getElementById('api-recursive-fields');
+    const apiModelPreset = document.getElementById('api-model-preset');
+    const MODEL_PRESETS = (window.STATION_CONFIG && Array.isArray(window.STATION_CONFIG.modelPresets))
+        ? window.STATION_CONFIG.modelPresets
+        : [];
+
+    // Chat: persisted per-agent fork under station_data/temporal_chat.
+    const temporalChatByAgent = new Map(); // agent_name -> [{role:'user'|'assistant', content:string}]
+    const temporalChatBaseTickByAgent = new Map(); // agent_name -> station tick used for the frozen fork
+    const temporalChatExistsByAgent = new Map(); // agent_name -> boolean
+    const temporalChatQueueByAgent = new Map(); // agent_name -> [string]
+    const temporalChatProcessingByAgent = new Map(); // agent_name -> boolean
+    const temporalChatBranchingByAgent = new Map(); // agent_name -> boolean
+    let archivePapersCache = [];
+    let archiveAllAbstractsMarkdown = '';
+    let archiveSelectedPaper = null;
+    let archiveSortState = { key: 'numeric_id', direction: 'asc' };
+    const archiveSelectedPaperIds = new Set();
+
+    let sseSource = null;
+    let pollingFallbackInterval = null;
+    let currentSelectedAgentForDialogueView = "all"; 
+    let isLoadingHistoryForAgent = null;
+    let orchestratorState = { is_prepared: false, is_running: false, is_paused: false, agents_awaiting_human: [], turn_order: [] };
+    let resolveRequestCache = new Map();
+    let fullAgentListCache = [];
+    let fullDialogueHistoryCache = {};
+    let isDirectMessageInProgress = false; // Track if a direct message is currently being sent 
+    const LOG_DISPLAY_MODE_STORAGE_KEY = 'station.dashboard.logDisplayMode';
+    const HISTORY_WINDOW_STORAGE_KEY = 'station.dashboard.historyWindow';
+    const LOG_MODES = ['full', 'collapsed'];
+    let logDisplayMode = localStorage.getItem(LOG_DISPLAY_MODE_STORAGE_KEY) || 'full';
+    if (!LOG_MODES.includes(logDisplayMode)) {
+        logDisplayMode = 'full';
+    }
+    let historyWindowMode = localStorage.getItem(HISTORY_WINDOW_STORAGE_KEY) || 'recent';
+    if (!['recent', 'earliest'].includes(historyWindowMode)) {
+        historyWindowMode = 'recent';
+    }
+    let logMessageSequence = 0;
+    const expandedMessageIds = new Set();
+    const collapsedSourceKeys = new Set();
+    const backgroundHistoryLoads = new Map();
+    const HISTORY_WINDOW_TICKS = 50;
+    let activeFloatingTooltipTarget = null;
+    let dashboardFloatingTooltip = null;
+    let dashboardTooltipHideTimer = null;
+    let agentHistoryRenderFragment = null;
+    let dashboardStatusTimer = null;
+
+    // --- Helper Functions ---
+    function hideDashboardStatus() {
+        if (!dashboardStatusMessages) return;
+        if (dashboardStatusTimer) {
+            clearTimeout(dashboardStatusTimer);
+            dashboardStatusTimer = null;
+        }
+        dashboardStatusMessages.classList.remove('opacity-100');
+        dashboardStatusMessages.classList.add('opacity-0', 'is-hidden');
+        dashboardStatusMessages.setAttribute('aria-hidden', 'true');
+        dashboardStatusMessages.tabIndex = -1;
+    }
+
+    function showDashboardStatus(message, type = 'info', duration = 4000) {
+        if (!dashboardStatusMessages) { console.error("dashboardStatusMessages element not found"); return; }
+        if (dashboardStatusTimer) {
+            clearTimeout(dashboardStatusTimer);
+            dashboardStatusTimer = null;
+        }
+        dashboardStatusMessages.textContent = message;
+        dashboardStatusMessages.className = 'dashboard-status-overlay p-3 glass-surface rounded-md text-sm border transition-all duration-300 opacity-100';
+        dashboardStatusMessages.setAttribute('aria-hidden', 'false');
+        dashboardStatusMessages.tabIndex = 0;
+        const typeClasses = {
+            error: ['bg-red-700', 'text-red-100', 'border-red-600'],
+            success: ['bg-emerald-700', 'text-emerald-100', 'border-emerald-600'],
+            info: ['bg-sky-700', 'text-sky-100', 'border-sky-600']
+        };
+        dashboardStatusMessages.classList.add(...(typeClasses[type] || typeClasses.info));
+        if (duration > 0) {
+            dashboardStatusTimer = setTimeout(() => {
+                hideDashboardStatus();
+            }, duration);
+        }
+    }
+
+    function getDashboardFloatingTooltip() {
+        if (!dashboardFloatingTooltip) {
+            dashboardFloatingTooltip = document.createElement('div');
+            dashboardFloatingTooltip.className = 'dashboard-floating-tooltip';
+            dashboardFloatingTooltip.setAttribute('role', 'tooltip');
+            dashboardFloatingTooltip.addEventListener('pointerover', () => {
+                if (dashboardTooltipHideTimer) {
+                    clearTimeout(dashboardTooltipHideTimer);
+                    dashboardTooltipHideTimer = null;
+                }
+            });
+            dashboardFloatingTooltip.addEventListener('pointerout', (event) => {
+                if (event.relatedTarget instanceof Node && dashboardFloatingTooltip.contains(event.relatedTarget)) return;
+                hideDashboardFloatingTooltip();
+            });
+            document.body.appendChild(dashboardFloatingTooltip);
+        }
+        return dashboardFloatingTooltip;
+    }
+
+    function positionDashboardFloatingTooltip(target) {
+        if (!target || !dashboardFloatingTooltip || !dashboardFloatingTooltip.classList.contains('is-visible')) return;
+
+        const targetRect = target.getBoundingClientRect();
+        const tooltipWidth = dashboardFloatingTooltip.offsetWidth || 320;
+        const tooltipHeight = dashboardFloatingTooltip.offsetHeight || 180;
+        const viewportPadding = 16;
+        const gap = 2;
+        const preferSidePlacement = window.innerWidth > 820;
+
+        let left = preferSidePlacement ? targetRect.right - gap : targetRect.left;
+        let top = preferSidePlacement
+            ? targetRect.top + (targetRect.height - tooltipHeight) / 2
+            : targetRect.bottom + 8;
+
+        if (preferSidePlacement && left + tooltipWidth > window.innerWidth - viewportPadding) {
+            left = targetRect.left - tooltipWidth - gap;
+        }
+        if (!preferSidePlacement && left + tooltipWidth > window.innerWidth - viewportPadding) {
+            left = window.innerWidth - tooltipWidth - viewportPadding;
+        }
+        if (top + tooltipHeight > window.innerHeight - viewportPadding) {
+            top = preferSidePlacement
+                ? window.innerHeight - tooltipHeight - viewportPadding
+                : targetRect.top - tooltipHeight - 8;
+        }
+
+        dashboardFloatingTooltip.style.left = `${Math.max(viewportPadding, left)}px`;
+        dashboardFloatingTooltip.style.top = `${Math.max(viewportPadding, top)}px`;
+    }
+
+    function showDashboardFloatingTooltip(target) {
+        if (!target) return;
+        const tooltipText = String(target.getAttribute('data-tooltip') || '').trim();
+        if (!tooltipText) return;
+        if (dashboardTooltipHideTimer) {
+            clearTimeout(dashboardTooltipHideTimer);
+            dashboardTooltipHideTimer = null;
+        }
+
+        activeFloatingTooltipTarget = target;
+        const tooltip = getDashboardFloatingTooltip();
+        tooltip.textContent = tooltipText;
+        tooltip.classList.add('is-visible');
+        positionDashboardFloatingTooltip(target);
+    }
+
+    function hideDashboardFloatingTooltip(target = null) {
+        if (target && target !== activeFloatingTooltipTarget) return;
+        if (dashboardTooltipHideTimer) clearTimeout(dashboardTooltipHideTimer);
+        dashboardTooltipHideTimer = setTimeout(() => {
+            if (dashboardFloatingTooltip && dashboardFloatingTooltip.matches(':hover')) return;
+            if (dashboardFloatingTooltip) {
+                dashboardFloatingTooltip.classList.remove('is-visible');
+            }
+            activeFloatingTooltipTarget = null;
+            dashboardTooltipHideTimer = null;
+        }, 180);
+    }
+
+    function findTooltipTarget(eventTarget) {
+        if (!(eventTarget instanceof Element)) return null;
+        const target = eventTarget.closest('.dashboard-metric-card[data-tooltip]');
+        if (!target || !String(target.getAttribute('data-tooltip') || '').trim()) return null;
+        return target;
+    }
+
+    if (dashboardMetricsGrid) {
+        dashboardMetricsGrid.addEventListener('pointerover', (event) => {
+            const target = findTooltipTarget(event.target);
+            if (!target) return;
+            showDashboardFloatingTooltip(target);
+        });
+
+        dashboardMetricsGrid.addEventListener('pointerout', (event) => {
+            const target = findTooltipTarget(event.target);
+            if (!target) return;
+            if (event.relatedTarget instanceof Node && target.contains(event.relatedTarget)) return;
+            hideDashboardFloatingTooltip(target);
+        });
+
+        dashboardMetricsGrid.addEventListener('focusin', (event) => {
+            const target = findTooltipTarget(event.target);
+            if (target) showDashboardFloatingTooltip(target);
+        });
+
+        dashboardMetricsGrid.addEventListener('focusout', (event) => {
+            const target = findTooltipTarget(event.target);
+            if (target) hideDashboardFloatingTooltip(target);
+        });
+    }
+
+    window.addEventListener('resize', () => {
+        positionDashboardFloatingTooltip(activeFloatingTooltipTarget);
+    });
+
+    function isMoreToolsOpen() {
+        return Boolean(moreToolsPopover && moreToolsPopover.classList.contains('is-open'));
+    }
+
+    function positionMoreToolsPopover() {
+        if (!moreToolsButton || !moreToolsPopover || !isMoreToolsOpen()) return;
+
+        const buttonRect = moreToolsButton.getBoundingClientRect();
+        const popoverWidth = moreToolsPopover.offsetWidth || 272;
+        const popoverHeight = moreToolsPopover.offsetHeight || 280;
+        const viewportPadding = 16;
+        const gap = 12;
+        const preferSidePlacement = window.innerWidth > 820;
+
+        let left = preferSidePlacement ? buttonRect.right + gap : buttonRect.left;
+        let top = preferSidePlacement ? buttonRect.top : buttonRect.bottom + 8;
+
+        if (preferSidePlacement && left + popoverWidth > window.innerWidth - viewportPadding) {
+            left = buttonRect.left - popoverWidth - gap;
+        }
+        if (!preferSidePlacement && left + popoverWidth > window.innerWidth - viewportPadding) {
+            left = window.innerWidth - popoverWidth - viewportPadding;
+        }
+        if (top + popoverHeight > window.innerHeight - viewportPadding) {
+            top = preferSidePlacement
+                ? window.innerHeight - popoverHeight - viewportPadding
+                : buttonRect.top - popoverHeight - 8;
+        }
+
+        moreToolsPopover.style.left = `${Math.max(viewportPadding, left)}px`;
+        moreToolsPopover.style.top = `${Math.max(viewportPadding, top)}px`;
+    }
+
+    function setMoreToolsOpen(open) {
+        if (!moreToolsButton || !moreToolsPopover) return;
+        moreToolsPopover.classList.toggle('is-open', open);
+        moreToolsButton.setAttribute('aria-expanded', open ? 'true' : 'false');
+        if (open) {
+            positionMoreToolsPopover();
+        }
+    }
+
+    if (moreToolsButton && moreToolsPopover) {
+        document.body.appendChild(moreToolsPopover);
+
+        moreToolsButton.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            setMoreToolsOpen(!isMoreToolsOpen());
+        });
+
+        moreToolsPopover.addEventListener('click', (event) => {
+            if (event.target instanceof Element && event.target.closest('button')) {
+                setMoreToolsOpen(false);
+            }
+        });
+
+        document.addEventListener('click', (event) => {
+            if (!isMoreToolsOpen()) return;
+            if (moreToolsButton.contains(event.target) || moreToolsPopover.contains(event.target)) return;
+            setMoreToolsOpen(false);
+        });
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && isMoreToolsOpen()) {
+                setMoreToolsOpen(false);
+                moreToolsButton.focus();
+            }
+        });
+
+        window.addEventListener('resize', positionMoreToolsPopover);
+    }
+
+    function renderMarkdownForDashboard(markdownText) {
+        if (window.marked && typeof window.marked.parse === 'function') {
+            try { 
+                return marked.parse(String(markdownText || ""), { gfm: true, breaks: true, pedantic: false, smartypants: false }); 
+            } 
+            catch (e) { 
+                console.error("Markdown parsing error:", e, "Input:", markdownText); 
+                const pre = document.createElement('pre'); pre.style.whiteSpace = 'pre-wrap';
+                pre.textContent = String(markdownText || ""); return pre.outerHTML;
+            }
+        }
+        console.warn("marked.js not loaded. Displaying raw text.");
+        const pre = document.createElement('pre'); pre.style.whiteSpace = 'pre-wrap';
+        pre.textContent = String(markdownText || ""); return pre.outerHTML;
+    }
+    
+    function escapeHtml(unsafe) {
+        if (unsafe === null || typeof unsafe === 'undefined') return '';
+        return String(unsafe).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    }
+
+    function formatAgentListForStatus(agentNames, maxVisible = 5) {
+        if (!Array.isArray(agentNames) || agentNames.length === 0) return 'none';
+        const visibleNames = agentNames.slice(0, maxVisible).join(', ');
+        const hiddenCount = agentNames.length - maxVisible;
+        return hiddenCount > 0 ? `${visibleNames} +${hiddenCount} more` : visibleNames;
+    }
+
+    function formatParallelTickStatus(parallelTickStatus) {
+        if (!parallelTickStatus) return '';
+        if (parallelTickStatus.error) {
+            return `Parallel status unavailable: ${parallelTickStatus.error}`;
+        }
+        if (!parallelTickStatus.active) return '';
+
+        const counts = parallelTickStatus.counts || {};
+        const preparing = parallelTickStatus.preparing_station_response || [];
+        const waiting = parallelTickStatus.waiting_for_response || [];
+        const pendingCommit = parallelTickStatus.response_received_pending_commit || [];
+        const internalRunning = parallelTickStatus.internal_action_running || [];
+        const total = Number.isFinite(Number(counts.total)) ? Number(counts.total) : 0;
+        const prepared = Number.isFinite(Number(counts.observation_prepared)) ? Number(counts.observation_prepared) : 0;
+        const responsesReceived = Number.isFinite(Number(counts.response_received)) ? Number(counts.response_received) : 0;
+        const committed = Number.isFinite(Number(counts.committed)) ? Number(counts.committed) : 0;
+
+        if (preparing.length > 0) return `Preparing station responses (${prepared}/${total} ready)`;
+        if (waiting.length > 0) return `Waiting for ${formatAgentListForStatus(waiting, 4)} (${responsesReceived}/${total} done)`;
+        if (pendingCommit.length > 0) return `Committing ${pendingCommit.length} response(s) (${committed}/${total} done)`;
+        if (internalRunning.length > 0) return `Waiting for internal action: ${formatAgentListForStatus(internalRunning, 4)}`;
+        if (total > 0) return `Committed ${committed}/${total} responses`;
+        return 'No active agents';
+    }
+
+    function setTooltipIfPresent(elementId, text) {
+        const element = document.getElementById(elementId);
+        if (!element) return;
+        const tooltipText = String(text || '').trim();
+        if (tooltipText) {
+            element.setAttribute('data-tooltip', tooltipText);
+            element.setAttribute('tabindex', '0');
+        } else {
+            element.removeAttribute('data-tooltip');
+            element.removeAttribute('tabindex');
+        }
+    }
+
+    function formatMinutesFromSeconds(seconds) {
+        if (seconds === null || typeof seconds === 'undefined' || seconds === '') return 'N/A';
+        const numericSeconds = Number(seconds);
+        if (!Number.isFinite(numericSeconds)) return 'N/A';
+        if (numericSeconds > 0 && numericSeconds < 60) return '<1m';
+        return `${Math.round(Math.max(0, numericSeconds) / 60)}m`;
+    }
+
+    function formatElapsedTickMinutes(elapsedMs) {
+        if (!Number.isFinite(elapsedMs)) return 'N/A';
+        return `${Math.floor(Math.max(0, elapsedMs) / 60000)}m`;
+    }
+
+    function interpolateColor(start, end, ratio) {
+        const clamped = Math.max(0, Math.min(1, ratio));
+        const values = start.map((value, index) => Math.round(value + (end[index] - value) * clamped));
+        return `rgb(${values[0]}, ${values[1]}, ${values[2]})`;
+    }
+
+    function getTickAgeColor(elapsedMinutes) {
+        const green = [34, 197, 94];
+        const yellow = [234, 179, 8];
+        const red = [239, 68, 68];
+        if (!Number.isFinite(elapsedMinutes)) return '';
+        if (elapsedMinutes < 30) return `rgb(${green.join(', ')})`;
+        if (elapsedMinutes < 60) return interpolateColor(green, yellow, (elapsedMinutes - 30) / 30);
+        if (elapsedMinutes < 120) return interpolateColor(yellow, red, (elapsedMinutes - 60) / 60);
+        return `rgb(${red.join(', ')})`;
+    }
+
+    function getTopScoreAgeColor(tickAge) {
+        const green = [34, 197, 94];
+        const yellow = [234, 179, 8];
+        const red = [239, 68, 68];
+        if (!Number.isFinite(tickAge)) return '';
+        if (tickAge <= 300) return `rgb(${green.join(', ')})`;
+        if (tickAge < 600) return interpolateColor(green, yellow, (tickAge - 300) / 300);
+        if (tickAge < 900) return interpolateColor(yellow, red, (tickAge - 600) / 300);
+        return `rgb(${red.join(', ')})`;
+    }
+
+    function renderTimeSinceLastTick() {
+        const valueElement = document.getElementById('queued-experiments-count');
+        const detailsElement = document.getElementById('queued-experiments-details');
+        if (!valueElement) return;
+
+        if (!Number.isFinite(latestTickStartedTimestampMs)) {
+            valueElement.textContent = 'N/A';
+            valueElement.style.color = '';
+            valueElement.style.removeProperty('--tick-age-color');
+            valueElement.classList.remove('tick-age-colored');
+            if (detailsElement) detailsElement.classList.add('hidden');
+            setTooltipIfPresent('queued-experiments-metric-card', latestTickTimingTooltip || 'No tick timing record is available.');
+            return;
+        }
+
+        const elapsedMs = Math.max(0, Date.now() - latestTickStartedTimestampMs);
+        const elapsedMinutes = elapsedMs / 60000;
+        const color = getTickAgeColor(elapsedMinutes);
+        valueElement.textContent = formatElapsedTickMinutes(elapsedMs);
+        valueElement.style.setProperty('--tick-age-color', color);
+        valueElement.style.color = color;
+        valueElement.classList.add('tick-age-colored');
+        if (detailsElement) {
+            detailsElement.textContent = '';
+            detailsElement.classList.add('hidden');
+        }
+        setTooltipIfPresent('queued-experiments-metric-card', latestTickTimingTooltip);
+    }
+
+    function updateTickTimingFromStats(tickTiming) {
+        const timing = tickTiming || {};
+        const startedSeconds = Number(timing.latest_tick_started_timestamp);
+        if (Number.isFinite(startedSeconds) && startedSeconds > 0) {
+            latestTickStartedTimestampMs = startedSeconds * 1000;
+        } else {
+            latestTickStartedTimestampMs = null;
+        }
+
+        latestTickTimingTooltip = [
+            `Average time per last 10 ticks: ${formatMinutesFromSeconds(timing.average_last_10_tick_seconds)}`,
+            `Average time per last 50 ticks: ${formatMinutesFromSeconds(timing.average_last_50_tick_seconds)}`,
+            `Average time per last 100 ticks: ${formatMinutesFromSeconds(timing.average_last_100_tick_seconds)}`
+        ].join('\n');
+
+        renderTimeSinceLastTick();
+    }
+
+    function _getTemporalChatMessages(agentName) {
+        if (!temporalChatByAgent.has(agentName)) temporalChatByAgent.set(agentName, []);
+        return temporalChatByAgent.get(agentName);
+    }
+
+    function _getTemporalChatQueue(agentName) {
+        if (!temporalChatQueueByAgent.has(agentName)) temporalChatQueueByAgent.set(agentName, []);
+        return temporalChatQueueByAgent.get(agentName);
+    }
+
+    function _isTemporalChatProcessing(agentName) {
+        return !!temporalChatProcessingByAgent.get(agentName);
+    }
+
+    function _isTemporalChatBranching(agentName) {
+        return !!temporalChatBranchingByAgent.get(agentName);
+    }
+
+    function _updateCachedTemporalChatMeta(agentName, chatState) {
+        if (!agentName || !chatState) return;
+        const agentInfo = fullAgentListCache.find(a => a && a.name === agentName);
+        if (!agentInfo) return;
+        agentInfo.temporal_chat_exists = !!chatState.exists;
+        agentInfo.temporal_chat_base_tick = typeof chatState.base_tick === 'undefined' ? null : chatState.base_tick;
+        agentInfo.temporal_chat_updated_at = chatState.updated_at || null;
+        if (temporalChatAgentSelector) {
+            Array.from(temporalChatAgentSelector.options || []).forEach(option => {
+                if (option.value === agentName) {
+                    option.textContent = formatAgentDisplayName(agentInfo, { includeBranchMarker: true });
+                }
+            });
+        }
+    }
+
+    function _applyTemporalChatState(agentName, chatState) {
+        if (!agentName || !chatState) return;
+        const rawMessages = Array.isArray(chatState.messages) ? chatState.messages : [];
+        temporalChatByAgent.set(agentName, rawMessages
+            .filter(m => m && (m.role === 'user' || m.role === 'assistant' || m.role === 'model'))
+            .map(m => ({
+                role: m.role === 'model' ? 'assistant' : m.role,
+                content: String(m.content || ''),
+                thinking_content: String(m.thinking_content || ''),
+                tick: m.tick
+            })));
+        temporalChatBaseTickByAgent.set(agentName, typeof chatState.base_tick === 'undefined' ? null : chatState.base_tick);
+        temporalChatExistsByAgent.set(agentName, !!chatState.exists);
+        _updateCachedTemporalChatMeta(agentName, chatState);
+    }
+
+    function _updateTemporalChatBaseTick(agentName) {
+        if (!temporalChatBaseTick) return;
+        if (!agentName) {
+            temporalChatBaseTick.textContent = 'Dialogue (not started):';
+            return;
+        }
+        const baseTick = temporalChatBaseTickByAgent.get(agentName);
+        const exists = !!temporalChatExistsByAgent.get(agentName);
+        temporalChatBaseTick.textContent = exists && baseTick !== null && typeof baseTick !== 'undefined'
+            ? `Dialogue (branched from tick ${baseTick}):`
+            : 'Dialogue (not started):';
+    }
+
+    function _getDashboardCurrentTick() {
+        if (!stationTickDashboard) return null;
+        const parsed = parseInt(String(stationTickDashboard.textContent || '').trim(), 10);
+        return Number.isFinite(parsed) ? parsed : null;
+    }
+
+    function _parseTemporalChatBranchTickInput() {
+        if (!temporalChatBranchTickInput) return { ok: true, value: null };
+        const raw = String(temporalChatBranchTickInput.value || '').trim();
+        if (!raw) return { ok: true, value: null };
+        if (!/^\d+$/.test(raw)) {
+            return { ok: false, error: 'Branch tick must be a whole non-negative number.' };
+        }
+        const branchTick = parseInt(raw, 10);
+        const currentTick = _getDashboardCurrentTick();
+        if (currentTick !== null && branchTick > currentTick) {
+            return { ok: false, error: `Branch tick cannot be in the future. Current station tick is ${currentTick}.` };
+        }
+        return { ok: true, value: branchTick };
+    }
+
+    async function _loadTemporalChatState(agentName) {
+        if (!agentName) return null;
+        const result = await fetchApi(`/api/agent/${encodeURIComponent(agentName)}/temporal_chat`, 'GET');
+        if (result && result.success && result.chat) {
+            _applyTemporalChatState(agentName, result.chat);
+            return result.chat;
+        }
+        throw new Error((result && (result.error || result.message)) || 'Failed to load chat.');
+    }
+
+    function _updateTemporalChatSendButtonState(agentName) {
+        if (confirmTemporalChatSendButton) {
+            const q = agentName ? _getTemporalChatQueue(agentName) : [];
+            const qLen = q ? q.length : 0;
+            const busy = agentName ? _isTemporalChatProcessing(agentName) : false;
+            const branching = agentName ? _isTemporalChatBranching(agentName) : false;
+            if (branching) {
+                confirmTemporalChatSendButton.textContent = 'Send';
+            } else if (qLen > 0) {
+                confirmTemporalChatSendButton.textContent = `Send (Queued: ${qLen})`;
+            } else if (busy) {
+                confirmTemporalChatSendButton.textContent = 'Sending...';
+            } else {
+                confirmTemporalChatSendButton.textContent = 'Send';
+            }
+            confirmTemporalChatSendButton.disabled = branching; // sending still allows enqueue
+        }
+
+        if (branchTemporalChatButton) {
+            const qLen = agentName ? _getTemporalChatQueue(agentName).length : 0;
+            const exists = agentName ? !!temporalChatExistsByAgent.get(agentName) : false;
+            const branching = agentName ? _isTemporalChatBranching(agentName) : false;
+            branchTemporalChatButton.textContent = branching ? 'Branching...' : (exists ? 'Branch Again' : 'Branch');
+            branchTemporalChatButton.disabled = !agentName || _isTemporalChatProcessing(agentName) || qLen > 0;
+        }
+
+        if (temporalChatBranchTickInput) {
+            const qLen = agentName ? _getTemporalChatQueue(agentName).length : 0;
+            temporalChatBranchTickInput.disabled = !agentName || _isTemporalChatProcessing(agentName) || qLen > 0;
+        }
+        _updateTemporalChatBaseTick(agentName);
+    }
+
+    function _renderTemporalChatTranscript(agentName) {
+        if (!temporalChatTranscript) return;
+        const msgs = agentName ? _getTemporalChatMessages(agentName) : [];
+        if (!msgs || msgs.length === 0) {
+            temporalChatTranscript.innerHTML = '<div class="text-slate-500 text-xs">No messages yet.</div>';
+            _updateTemporalChatSendButtonState(agentName);
+            return;
+        }
+
+        temporalChatTranscript.innerHTML = '';
+        msgs.forEach(m => {
+            const role = m.role === 'assistant' ? 'Agent' : 'You';
+            const tickText = typeof m.tick !== 'undefined' && m.tick !== null ? ` (Tick ${escapeHtml(String(m.tick))})` : '';
+            const headerHtml = `<strong>[${role}${tickText}]</strong>`;
+            const content = String(m.content || "");
+            const thinkingContent = String(m.thinking_content || "");
+            const thinkingHtml = thinkingContent.trim()
+                ? `<div class="thinking-block border-l-4 border-sky-700 bg-slate-800/50 p-2 mb-2 text-slate-400 text-xs italic rounded">
+                    <strong class="text-sky-500 block mb-1">Agent Thinking:</strong>
+                    <div class="whitespace-pre-wrap">${escapeHtml(thinkingContent)}</div>
+                </div>`
+                : '';
+            const rendered = renderMarkdownForDashboard(content);
+            const bubbleContentHtml = `${headerHtml}${thinkingHtml}<div class="mt-1 text-sm markdown-content-host">${rendered}</div>`;
+            const rawTextForCopy = thinkingContent.trim()
+                ? `Thinking:\n${thinkingContent}\n\nResponse:\n${content}`
+                : content;
+            const bubbleStyle = m.role === 'assistant' ? 'chat-bubble-agent' : 'chat-bubble-station';
+            temporalChatTranscript.appendChild(createLogBubble(bubbleContentHtml, rawTextForCopy, bubbleStyle, {
+                isCollapsible: false,
+                sourceType: m.role === 'assistant' ? 'agent' : 'station'
+            }));
+        });
+        temporalChatTranscript.scrollTop = temporalChatTranscript.scrollHeight;
+        _updateTemporalChatSendButtonState(agentName);
+    }
+
+    function _formatTemporalChatForCopy(agentName, includeThinking = true) {
+        // Copy only the visible temporal fork, not the hidden frozen station dialogue context.
+        const msgs = agentName ? _getTemporalChatMessages(agentName).filter(m => m && (m.role === 'user' || m.role === 'assistant')) : [];
+        if (!msgs || msgs.length === 0) return '';
+        return msgs.map(m => {
+            const role = m.role === 'assistant' ? 'Agent' : 'You';
+            const thinkingContent = String(m.thinking_content || '').trim();
+            const thinkingText = includeThinking && thinkingContent ? `Thinking:\n${thinkingContent}\n\n` : '';
+            return `${role}:\n${thinkingText}${String(m.content || '').trim()}\n`;
+        }).join('\n');
+    }
+
+    function _closeTemporalChatModal() {
+        hideModalWithoutReset(temporalChatModal, true);
+    }
+
+    function formatArchiveScore(score) {
+        if (score === null || typeof score === 'undefined' || score === '') return 'N/A';
+        const numericScore = Number(score);
+        return Number.isFinite(numericScore) ? `${numericScore}/10` : 'N/A';
+    }
+
+    function formatTopResearchScore(score) {
+        if (score === null || typeof score === 'undefined') return 'N/A';
+        if (typeof score !== 'number' && typeof score !== 'string') return String(score);
+
+        const rawScore = String(score).trim();
+        if (!rawScore) return 'N/A';
+
+        const numericPattern = /^[+-]?(?:(?:\d+\.?\d*)|(?:\.\d+))(?:[eE][+-]?\d+)?$/;
+        if (!numericPattern.test(rawScore)) return rawScore;
+
+        const numericScore = Number(rawScore);
+        if (!Number.isFinite(numericScore)) return rawScore;
+        if (Number.isInteger(numericScore)) return rawScore;
+
+        const decimalPlaces = 8;
+        const factor = 10 ** decimalPlaces;
+        const truncatedScore = Math.trunc(numericScore * factor) / factor;
+        return truncatedScore.toFixed(decimalPlaces);
+    }
+
+    function getArchiveSortValue(paper, key) {
+        const value = paper ? paper[key] : null;
+        if (key === 'numeric_id' || key === 'accepted_tick' || key === 'word_count') {
+            const numericValue = Number(value);
+            return Number.isFinite(numericValue) ? numericValue : -Infinity;
+        }
+        if (key === 'reviewer_score') {
+            const numericValue = Number(value);
+            return Number.isFinite(numericValue) ? numericValue : -Infinity;
+        }
+        return String(value || '').toLowerCase();
+    }
+
+    function sortArchivePapers() {
+        const { key, direction } = archiveSortState;
+        const multiplier = direction === 'asc' ? 1 : -1;
+        archivePapersCache.sort((a, b) => {
+            const aValue = getArchiveSortValue(a, key);
+            const bValue = getArchiveSortValue(b, key);
+            if (aValue < bValue) return -1 * multiplier;
+            if (aValue > bValue) return 1 * multiplier;
+            return (Number(b.numeric_id) || 0) - (Number(a.numeric_id) || 0);
+        });
+    }
+
+    function updateArchiveSortButtons() {
+        document.querySelectorAll('.archive-sort-button').forEach(button => {
+            const key = button.getAttribute('data-sort-key');
+            const label = (button.textContent || '').replace(/\s[↑↓]$/, '');
+            if (key === archiveSortState.key) {
+                button.textContent = `${label} ${archiveSortState.direction === 'asc' ? '↑' : '↓'}`;
+            } else {
+                button.textContent = label;
+            }
+        });
+    }
+
+    function setArchiveListLoadingState(message) {
+        if (!archivePapersTableBody) return;
+        archivePapersTableBody.innerHTML = `<tr><td colspan="7" class="archive-empty-state">${escapeHtml(message)}</td></tr>`;
+    }
+
+    function renderArchivePapersTable() {
+        if (!archivePapersTableBody) return;
+        if (!Array.isArray(archivePapersCache) || archivePapersCache.length === 0) {
+            setArchiveListLoadingState('No archive papers available.');
+            updateArchiveSortButtons();
+            return;
+        }
+
+        sortArchivePapers();
+        updateArchiveSortButtons();
+
+        const rows = archivePapersCache.map(paper => {
+            const title = escapeHtml(paper.title || 'Untitled');
+            const author = escapeHtml(paper.author || 'Unknown');
+            const acceptedTick = escapeHtml(String(paper.accepted_tick ?? 'N/A'));
+            const reviewerScore = formatArchiveScore(paper.reviewer_score);
+            const abstract = escapeHtml(String(paper.abstract || ''));
+            const abstractPreview = abstract.length > 220 ? `${abstract.slice(0, 220)}...` : abstract;
+            const scoreClass = reviewerScore === 'N/A' ? 'archive-reviewer-score na' : 'archive-reviewer-score';
+            const checked = archiveSelectedPaperIds.has(Number(paper.numeric_id)) ? 'checked' : '';
+            return `
+                <tr class="archive-papers-row" data-archive-id="${paper.numeric_id}">
+                    <td>
+                        <input type="checkbox" class="archive-paper-select-checkbox" data-archive-id="${paper.numeric_id}" ${checked} aria-label="Select Archive #${paper.numeric_id}">
+                    </td>
+                    <td>${paper.numeric_id}</td>
+                    <td class="archive-paper-title-cell">
+                        <strong>${title}</strong>
+                        <span>${abstractPreview || 'No abstract available.'}</span>
+                    </td>
+                    <td>${author}</td>
+                    <td>${acceptedTick}</td>
+                    <td><span class="${scoreClass}">${escapeHtml(reviewerScore)}</span></td>
+                    <td>${escapeHtml(String(paper.word_count ?? 0))}</td>
+                </tr>
+            `;
+        });
+
+        archivePapersTableBody.innerHTML = rows.join('');
+        archivePapersTableBody.querySelectorAll('.archive-papers-row').forEach(row => {
+            row.addEventListener('click', () => {
+                const numericId = Number(row.getAttribute('data-archive-id'));
+                if (Number.isFinite(numericId)) {
+                    void openArchivePaperDetail(numericId);
+                }
+            });
+        });
+        archivePapersTableBody.querySelectorAll('.archive-paper-select-checkbox').forEach(checkbox => {
+            checkbox.addEventListener('click', (event) => {
+                event.stopPropagation();
+            });
+            checkbox.addEventListener('change', () => {
+                const numericId = Number(checkbox.getAttribute('data-archive-id'));
+                if (!Number.isFinite(numericId)) return;
+                if (checkbox.checked) {
+                    archiveSelectedPaperIds.add(numericId);
+                } else {
+                    archiveSelectedPaperIds.delete(numericId);
+                }
+            });
+        });
+    }
+
+    function showArchiveListView() {
+        if (archivePapersListView) archivePapersListView.classList.remove('hidden');
+        if (archivePaperDetailView) archivePaperDetailView.classList.add('hidden');
+    }
+
+    function showArchiveDetailView() {
+        if (archivePapersListView) archivePapersListView.classList.add('hidden');
+        if (archivePaperDetailView) archivePaperDetailView.classList.remove('hidden');
+    }
+
+    async function copyTextToClipboard(text, successMessage) {
+        try {
+            await navigator.clipboard.writeText(text);
+            showDashboardStatus(successMessage, 'success');
+        } catch (e) {
+            showDashboardStatus('Failed to copy to clipboard.', 'error');
+        }
+    }
+
+    function updateCopySystemPromptButtonState() {
+        if (!copySystemPromptButton) return;
+        const selectedAgent = agentSelectorDashboard ? agentSelectorDashboard.value : 'all';
+        copySystemPromptButton.disabled = !selectedAgent || selectedAgent === 'all';
+    }
+
+    function updateHistoryWindowSelector() {
+        if (!historyWindowSelector) return;
+        historyWindowSelector.value = historyWindowMode;
+        historyWindowSelector.disabled = currentSelectedAgentForDialogueView !== "all" && !!isLoadingHistoryForAgent;
+    }
+
+    function showHistoryWindowSelector(show) {
+        if (!historyWindowSelector) return;
+        historyWindowSelector.classList.toggle('hidden', !show);
+    }
+
+    function showLoadFullHistoryButton(show, text = 'Load Full History') {
+        if (!loadFullHistoryButton) return;
+        loadFullHistoryButton.textContent = text;
+        loadFullHistoryButton.classList.toggle('hidden', !show);
+    }
+
+    async function loadArchivePapers() {
+        setArchiveListLoadingState('Loading archive papers...');
+        const result = await fetchApi('/api/archive/papers', 'GET');
+        archivePapersCache = Array.isArray(result.capsules) ? result.capsules : [];
+        archiveAllAbstractsMarkdown = String(result.all_abstracts_markdown || '');
+        renderArchivePapersTable();
+    }
+
+    async function openArchivePaperDetail(numericId) {
+        showDashboardStatus(`Loading archive paper #${numericId}...`, 'info', 2000);
+        const result = await fetchApi(`/api/archive/papers/${numericId}`, 'GET');
+        archiveSelectedPaper = result;
+        if (archivePaperDetailTitle) {
+            archivePaperDetailTitle.textContent = result.title || `Archive Paper #${numericId}`;
+        }
+        if (archivePaperDetailMeta) {
+            const metaParts = [
+                `Author: ${result.author || 'Unknown'}`,
+                `Accepted Tick: ${result.accepted_tick ?? 'N/A'}`,
+                `Reviewer Score: ${formatArchiveScore(result.reviewer_score)}`
+            ];
+            archivePaperDetailMeta.textContent = metaParts.join(' | ');
+        }
+        if (archivePaperMarkdownContainer) {
+            archivePaperMarkdownContainer.innerHTML = renderMarkdownForDashboard(String(result.paper_markdown || ''));
+            archivePaperMarkdownContainer.scrollTop = 0;
+        }
+        showArchiveDetailView();
+    }
+
+    async function openArchivePapersModal() {
+        if (!archivePapersModal) return;
+        archiveSelectedPaper = null;
+        showArchiveListView();
+        archivePapersModal.style.display = 'block';
+        try {
+            await loadArchivePapers();
+        } catch (error) {
+            setArchiveListLoadingState('Failed to load archive papers.');
+        }
+    }
+
+    function formatAgentDisplayName(agent, options = {}) {
+        const modelName = agent.model_name || "Unknown Model";
+        const supervisorLabel = agent.is_supervisor ? " [Supervisor]" : "";
+        const branchLabel = options.includeBranchMarker && agent.temporal_chat_exists && agent.temporal_chat_base_tick !== null && typeof agent.temporal_chat_base_tick !== 'undefined'
+            ? `; Branched from Tick ${agent.temporal_chat_base_tick}`
+            : "";
+        
+        // Handle ended/ascended agents
+        let suffix = '';
+        if (agent.status.startsWith("Session Ended")) {
+            suffix = '; ended';
+        } else if (agent.status.startsWith("Ascended")) {
+            suffix = '; ascended';
+        }
+        
+        return `${agent.name} (${modelName}${suffix}${branchLabel})${supervisorLabel}`;
+    }
+
+    function getCurrentLogContainer() {
+        return currentSelectedAgentForDialogueView === "all" ? globalNotificationBubbleLog : agentSpecificBubbleLog;
+    }
+
+    function getPlainTextPreview(rawText, maxChars = 220) {
+        const text = String(rawText || '')
+            .replace(/\r\n/g, '\n')
+            .replace(/[ \t]+/g, ' ')
+            .replace(/\n{3,}/g, '\n\n')
+            .trim();
+        if (!text) return '';
+        if (text.length <= maxChars) return text;
+        return `${text.slice(0, maxChars).trimEnd()}...`;
+    }
+
+    function shouldMakeMessageCollapsible(eventType, rawTextForCopy, bubbleStyle) {
+        if (bubbleStyle && bubbleStyle.includes('chat-bubble-error')) return false;
+        if (['error', 'stream_error', 'connector_error'].includes(eventType)) return false;
+
+        const rawText = String(rawTextForCopy || '');
+        if (!rawText.trim()) return false;
+
+        const lineCount = rawText.split(/\r\n|\r|\n/).length;
+        return rawText.length > 700 || lineCount > 8;
+    }
+
+    function getSourceKey(sourceType) {
+        return `${currentSelectedAgentForDialogueView || 'all'}:${sourceType}`;
+    }
+
+    function updateLogModeButtons() {
+        const buttons = [logModeFullButton, logModeCollapsedButton].filter(Boolean);
+        buttons.forEach(button => {
+            const isActive = button.dataset.logMode === logDisplayMode;
+            button.classList.toggle('log-display-mode-button-active', isActive);
+        });
+    }
+
+    function applyLogDisplayMode() {
+        [globalNotificationBubbleLog, agentSpecificBubbleLog].filter(Boolean).forEach(container => {
+            container.classList.remove('log-mode-full', 'log-mode-collapsed');
+            container.classList.add(`log-mode-${logDisplayMode}`);
+        });
+        updateLogModeButtons();
+        updateSourceToggleButtons();
+    }
+
+    function setCurrentLogExpandedState(expanded) {
+        const container = getCurrentLogContainer();
+        if (!container) return;
+        container.querySelectorAll('.log-message-collapsible').forEach(bubble => {
+            setLogMessageExpanded(bubble, expanded);
+        });
+    }
+
+    function setLogDisplayMode(mode) {
+        if (!LOG_MODES.includes(mode)) return;
+        logDisplayMode = mode;
+        localStorage.setItem(LOG_DISPLAY_MODE_STORAGE_KEY, mode);
+        ['agent', 'station'].forEach(sourceType => {
+            const sourceKey = getSourceKey(sourceType);
+            if (mode === 'full') collapsedSourceKeys.delete(sourceKey);
+            else collapsedSourceKeys.add(sourceKey);
+        });
+        applyLogDisplayMode();
+        setCurrentLogExpandedState(mode === 'full');
+    }
+
+    function syncLogMessageToggleText(bubbleWrapper) {
+        if (!bubbleWrapper) return;
+        const toggle = bubbleWrapper.querySelector('.log-message-toggle');
+        if (!toggle) return;
+        const isExpanded = bubbleWrapper.classList.contains('log-message-expanded');
+        toggle.textContent = isExpanded ? 'Collapse' : 'Expand';
+        toggle.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
+    }
+
+    function setLogMessageExpanded(bubbleWrapper, expanded) {
+        if (!bubbleWrapper || !bubbleWrapper.classList.contains('log-message-collapsible')) return;
+        const messageId = bubbleWrapper.dataset.messageId;
+        bubbleWrapper.classList.toggle('log-message-expanded', expanded);
+        if (messageId) {
+            if (expanded) expandedMessageIds.add(messageId);
+            else expandedMessageIds.delete(messageId);
+        }
+        syncLogMessageToggleText(bubbleWrapper);
+    }
+
+    function setCurrentLogSourceCollapsed(sourceType, collapsed) {
+        const container = getCurrentLogContainer();
+        if (!container) return;
+        const sourceKey = getSourceKey(sourceType);
+        if (collapsed) collapsedSourceKeys.add(sourceKey);
+        else collapsedSourceKeys.delete(sourceKey);
+
+        container.querySelectorAll(`.log-message-collapsible[data-source-type="${sourceType}"]`).forEach(bubble => {
+            setLogMessageExpanded(bubble, !collapsed);
+        });
+        updateSourceToggleButtons();
+    }
+
+    function isCurrentLogSourceCollapsed(sourceType) {
+        return collapsedSourceKeys.has(getSourceKey(sourceType));
+    }
+
+    function updateSourceToggleButtons() {
+        if (toggleAgentLogButton) {
+            const collapsed = isCurrentLogSourceCollapsed('agent');
+            toggleAgentLogButton.textContent = collapsed ? 'Expand Agent' : 'Collapse Agent';
+        }
+        if (toggleStationLogButton) {
+            const collapsed = isCurrentLogSourceCollapsed('station');
+            toggleStationLogButton.textContent = collapsed ? 'Expand Station' : 'Collapse Station';
+        }
+    }
+
+    function getSelectableLogBubbleBody(bubbleWrapper) {
+        if (!bubbleWrapper) return null;
+        const bodies = Array.from(bubbleWrapper.querySelectorAll('.markdown-content-host'));
+        return bodies.find(body => !body.closest('.thinking-block')) || null;
+    }
+
+    function selectLogBubbleBody(bubbleWrapper) {
+        const selectableBody = getSelectableLogBubbleBody(bubbleWrapper);
+        if (!selectableBody) return false;
+        if (bubbleWrapper.classList.contains('log-message-collapsible')) {
+            setLogMessageExpanded(bubbleWrapper, true);
+        }
+        const selection = window.getSelection ? window.getSelection() : null;
+        if (!selection) return false;
+        const range = document.createRange();
+        range.selectNodeContents(selectableBody);
+        selection.removeAllRanges();
+        selection.addRange(range);
+        return true;
+    }
+
+    function createLogBubble(bubbleContentHtml, rawTextForCopy, bubbleStyle, options = {}) {
+        const bubbleWrapper = document.createElement('div');
+        bubbleWrapper.classList.add('chat-bubble', 'text-sm', ...bubbleStyle.split(' '));
+        bubbleWrapper.classList.add('log-message-shell');
+
+        const eventType = options.eventType || '';
+        const isCollapsible = options.isCollapsible !== undefined
+            ? options.isCollapsible
+            : shouldMakeMessageCollapsible(eventType, rawTextForCopy, bubbleStyle);
+        const messageId = options.messageId || `log-message-${++logMessageSequence}`;
+        bubbleWrapper.dataset.messageId = messageId;
+        const sourceType = options.sourceType || 'station';
+        bubbleWrapper.dataset.sourceType = sourceType;
+        if (options.historyKey) {
+            bubbleWrapper.dataset.historyKey = options.historyKey;
+        }
+
+        if (isCollapsible) {
+            bubbleWrapper.classList.add('log-message-collapsible');
+            const sourceCollapsed = collapsedSourceKeys.has(getSourceKey(sourceType));
+            if (expandedMessageIds.has(messageId) || (logDisplayMode === 'full' && !sourceCollapsed)) {
+                bubbleWrapper.classList.add('log-message-expanded');
+            }
+
+            const preview = getPlainTextPreview(options.previewText || rawTextForCopy, 220);
+            let headerHtml = options.headerHtml || '';
+            let bodyHtml = bubbleContentHtml;
+            if (!headerHtml) {
+                const leadingStrongMatch = String(bubbleContentHtml).match(/^\s*(<strong>[\s\S]*?<\/strong>)([\s\S]*)$/);
+                if (leadingStrongMatch) {
+                    headerHtml = leadingStrongMatch[1];
+                    bodyHtml = leadingStrongMatch[2].trimStart();
+                }
+            }
+            bubbleWrapper.innerHTML = `
+                <div class="log-message-header">
+                    <div class="log-message-title">${headerHtml}</div>
+                    <button type="button" class="log-message-toggle">Expand</button>
+                </div>
+                <div class="log-message-preview">${escapeHtml(preview || '(empty message)')}</div>
+                <div class="log-message-body">${bodyHtml}</div>
+            `;
+            syncLogMessageToggleText(bubbleWrapper);
+        } else {
+            bubbleWrapper.innerHTML = bubbleContentHtml;
+        }
+
+        const bubbleActionControls = document.createElement('div');
+        bubbleActionControls.classList.add('log-bubble-actions');
+
+        if (rawTextForCopy && typeof rawTextForCopy === 'string' && rawTextForCopy.trim()) {
+            const copyButton = document.createElement('button');
+            copyButton.textContent = 'Copy';
+            copyButton.classList.add('copy-btn', 'log-bubble-action-btn');
+            copyButton.onclick = (e) => {
+                e.stopPropagation();
+                navigator.clipboard.writeText(rawTextForCopy).then(() => {
+                    copyButton.textContent = 'Copied!';
+                    setTimeout(() => { copyButton.textContent = 'Copy'; }, 1500);
+                }).catch(err => {
+                    console.error('Failed to copy text: ', err);
+                    showDashboardStatus('Failed to copy text.', 'error');
+                });
+            };
+            bubbleActionControls.appendChild(copyButton);
+        }
+        if (getSelectableLogBubbleBody(bubbleWrapper)) {
+            const selectButton = document.createElement('button');
+            selectButton.textContent = 'Select';
+            selectButton.classList.add('select-btn', 'log-bubble-action-btn');
+            selectButton.onclick = (e) => {
+                e.stopPropagation();
+                if (selectLogBubbleBody(bubbleWrapper)) {
+                    selectButton.textContent = 'Selected';
+                    setTimeout(() => { selectButton.textContent = 'Select'; }, 1500);
+                } else {
+                    showDashboardStatus('No selectable body text found.', 'error');
+                }
+            };
+            bubbleActionControls.appendChild(selectButton);
+        }
+        if (bubbleActionControls.childElementCount > 0) {
+            bubbleWrapper.appendChild(bubbleActionControls);
+        }
+        return bubbleWrapper;
+    }
+
+    function addMessageToGlobalNotificationBubbleLog(eventData) {
+        if (!globalNotificationBubbleLog) { console.error("globalNotificationBubbleLog element not found"); return; }
+
+        const { event: eventType, data, timestamp } = eventData;
+        let displayThisEvent = false;
+        let bubbleContentHtml = "";
+        let rawTextForCopy = "";
+        const timeStr = new Date(timestamp * 1000).toLocaleTimeString();
+        let titlePrefix = `<strong>[${eventType.replace(/_/g, ' ').toUpperCase()} @ ${timeStr}]</strong>`;
+        let bubbleStyle = 'chat-bubble-system'; 
+
+        switch (eventType) {
+            case 'orchestrator_status':
+            case 'orchestrator_control':
+            case 'orchestrator_info':
+            case 'stream_status':
+            case 'system_message': 
+                displayThisEvent = true;
+                bubbleContentHtml = `${titlePrefix} ${escapeHtml(data.message || JSON.stringify(data))}`;
+                rawTextForCopy = data.message || JSON.stringify(data);
+                break;
+            case 'tick_event':
+                displayThisEvent = true;
+                bubbleStyle = 'text-indigo-300 chat-bubble-system'; 
+                let tickMsg = `Tick ${data.tick} - Event: ${data.type}`;
+                if(data.turn_order) tickMsg += ` | Order: ${data.turn_order.join(', ')}`;
+                if(data.next_tick) tickMsg += ` | Next Tick: ${data.next_tick}`;
+                if(data.reason) tickMsg += ` | Reason: ${escapeHtml(data.reason)}`;
+                if(data.auto_paused !== undefined) tickMsg += ` | Auto-Paused: ${data.auto_paused}`;
+                bubbleContentHtml = `${titlePrefix} ${escapeHtml(tickMsg)}`;
+                rawTextForCopy = tickMsg;
+                break;
+            case 'agent_event':
+                if (['token_budget_updated', 'session_ended_tokens', 'session_ended_tokens_internal', 'turn_start', 'turn_end', 'session_ended_by_llm_response_handler'].includes(data.type)) {
+                    displayThisEvent = true;
+                    bubbleStyle = 'text-purple-300 chat-bubble-system';
+                    let agentEventMsg = `Agent: <strong>${escapeHtml(data.agent_name)}</strong> (Tick ${data.tick}) - ${data.type.replace(/_/g, ' ')}`;
+                    if (data.type === 'token_budget_updated' && data.current_used !== undefined && data.max_budget !== undefined) {
+                        agentEventMsg += ` | Budget: ${data.current_used} / ${data.max_budget}`;
+                    }
+                    if (data.reason) agentEventMsg += ` | Reason: ${escapeHtml(data.reason)}`;
+                    bubbleContentHtml = `${titlePrefix} ${agentEventMsg}`;
+                    rawTextForCopy = agentEventMsg;
+                }
+                break;
+            case 'llm_event': 
+                if (data.token_info) {
+                    displayThisEvent = true;
+                    bubbleStyle = 'text-sky-300 chat-bubble-system'; 
+                    const agentNameHtml = `<strong>${escapeHtml(data.agent_name)}</strong>`;
+                    const tickText = escapeHtml(String(data.tick || 'N/A'));
+                    let tokenDetails = "";
+                    const ti = data.token_info;
+                    const formatTokenValue = (value) => (value !== null && value !== undefined ? value : 'N/A');
+                    tokenDetails += ` Session Total: ${formatTokenValue(ti.total_tokens_in_session)}.`;
+                    tokenDetails += ` Last Prompt: ${formatTokenValue(ti.last_exchange_prompt_tokens)}.`;
+                    tokenDetails += ` Last Completion: ${formatTokenValue(ti.last_exchange_completion_tokens)}.`;
+                    tokenDetails += ` Cached: ${formatTokenValue(ti.last_exchange_cached_tokens)}.`;
+                    tokenDetails += ` Thoughts: ${formatTokenValue(ti.last_exchange_thoughts_tokens)}.`;
+                    bubbleContentHtml = `${titlePrefix} Agent: ${agentNameHtml} (Tick ${tickText}) - LLM Token Usage:${escapeHtml(tokenDetails)}`;
+                    rawTextForCopy = `Agent: ${data.agent_name} (Tick ${data.tick || 'N/A'}) - LLM Token Usage:${tokenDetails}`;
+                }
+                break;
+            case 'connector_status':
+            case 'connector_error':
+                displayThisEvent = true;
+                bubbleStyle = eventType === 'connector_error' ? 'chat-bubble-error' : 'chat-bubble-system';
+                bubbleContentHtml = `${titlePrefix} Agent: ${escapeHtml(data.agent_name)} - ${escapeHtml(data.status || data.message)}`;
+                rawTextForCopy = `Connector for ${data.agent_name}: ${data.status || data.message}`;
+                break;
+            case 'human_assist_event': 
+                 if (!['manual_message_to_llm', 'manual_llm_response_received', 'manual_message_send_attempt'].includes(data.type)) {
+                    displayThisEvent = true;
+                    bubbleStyle = 'text-fuchsia-300 chat-bubble-system';
+                    let assistMsg = `Agent: ${escapeHtml(data.agent_name)} - ${data.type.replace(/_/g, ' ')}`;
+                    if(data.message) assistMsg += `: ${escapeHtml(data.message)}`;
+                    if(data.error) assistMsg += ` ERROR: ${escapeHtml(data.error)}`;
+                    bubbleContentHtml = `${titlePrefix} ${assistMsg}`;
+                    rawTextForCopy = assistMsg;
+                }
+                break;
+            case 'error':
+            case 'stream_error':
+                displayThisEvent = true;
+                bubbleStyle = 'chat-bubble-error';
+                bubbleContentHtml = `${titlePrefix} ${escapeHtml(data.message || JSON.stringify(data))}`;
+                rawTextForCopy = `ERROR: ${data.message || JSON.stringify(data)}`;
+                break;
+            // --- MODIFICATION START: Add case for final_chat_event notifications ---
+            case 'final_chat_event':
+                 if (data.status === 'success') {
+                    displayThisEvent = true;
+                    bubbleStyle = 'text-teal-300 chat-bubble-system';
+                    let finalChatMsg = `Final chat with Agent: <strong>${escapeHtml(data.agent_name)}</strong> successful.`;
+                    if (data.token_info) {
+                         const ti = data.token_info;
+                         const formatTokenValue = (value) => (value !== null && value !== undefined ? value : 'N/A');
+                         finalChatMsg += ` Tokens - Prompt: ${formatTokenValue(ti.last_exchange_prompt_tokens)}, Completion: ${formatTokenValue(ti.last_exchange_completion_tokens)}.`;
+                    }
+                    bubbleContentHtml = `${titlePrefix} ${finalChatMsg}`;
+                    rawTextForCopy = finalChatMsg;
+                 } else if (data.status === 'error') {
+                    displayThisEvent = true;
+                    bubbleStyle = 'chat-bubble-error';
+                    bubbleContentHtml = `${titlePrefix} Error in final chat with Agent: <strong>${escapeHtml(data.agent_name)}</strong> - ${escapeHtml(data.error_message || "Unknown error")}`;
+                    rawTextForCopy = `Error in final chat with ${data.agent_name}: ${data.error_message}`;
+                 }
+                break;
+            // --- MODIFICATION END ---
+            // --- Auto Evaluation Events ---
+            case 'auto_eval_status':
+            case 'auto_eval_event':
+            case 'auto_eval_error':
+                displayThisEvent = true;
+                if (eventType === 'auto_eval_error') {
+                    bubbleStyle = 'chat-bubble-error';
+                    bubbleContentHtml = `${titlePrefix} Auto-Eval Error: ${escapeHtml(data.error || data.message)}`;
+                    rawTextForCopy = `Auto-Eval Error: ${data.error || data.message}`;
+                } else {
+                    bubbleStyle = 'text-violet-300 chat-bubble-system';
+                    let evalMsg = `Auto-Evaluator: ${data.status || 'event'}`;
+                    if (data.agent_name && data.test_id) {
+                        evalMsg += ` - Agent: ${escapeHtml(data.agent_name)}, Test: ${data.test_id}`;
+                        if (data.result !== undefined) {
+                            evalMsg += `, Result: ${data.result ? 'PASS' : 'FAIL'}`;
+                        }
+                        if (data.comment) {
+                            evalMsg += `, Comment: ${escapeHtml(data.comment)}`;
+                        }
+                    } else if (data.pending_count) {
+                        evalMsg += ` - Processing ${data.pending_count} tests`;
+                    }
+                    if (data.message) {
+                        evalMsg += ` - ${escapeHtml(data.message)}`;
+                    }
+                    bubbleContentHtml = `${titlePrefix} ${evalMsg}`;
+                    rawTextForCopy = evalMsg;
+                }
+                break;
+        }
+
+        if (displayThisEvent) {
+            const bubbleWrapper = createLogBubble(bubbleContentHtml, rawTextForCopy, bubbleStyle, {
+                eventType,
+                messageId: `global:${eventType}:${timestamp || Date.now()}:${++logMessageSequence}`,
+                sourceType: 'station'
+            });
+            
+            const initialMsg = globalNotificationBubbleLog.querySelector('.initial-log-message');
+            if (initialMsg) {
+                initialMsg.remove();
+            }
+            globalNotificationBubbleLog.insertBefore(bubbleWrapper, globalNotificationBubbleLog.firstChild);
+
+            const MAX_GLOBAL_LOG_BUBBLES = 200;
+            if (globalNotificationBubbleLog.children.length > MAX_GLOBAL_LOG_BUBBLES) {
+                globalNotificationBubbleLog.removeChild(globalNotificationBubbleLog.lastChild);
+            }
+        }
+    }
+    
+    // --- addMessageToAgentBubbleLog (with consistent thinking block logic from previous step) ---
+    function addMessageToAgentBubbleLog(eventData, isHistorical = false) {
+        if (!agentSpecificBubbleLog) { console.error("agentSpecificBubbleLog element not found"); return; }
+
+        let { event: eventType, data, timestamp } = eventData; 
+        
+        // Bug Fix: If historical entry has no type, assign a default based on content
+        if (isHistorical && !eventType) {
+            if (data.speaker && (data.speaker === 'Station' || data.speaker.startsWith('Station'))) {
+                eventType = 'observation';
+            } else if (data.text_content || data.content) {
+                eventType = 'submission';
+            } else {
+                eventType = 'historical_log'; // Fallback for unknown historical entries
+            }
+            eventData.event = eventType; // Persist the change for later logic
+        }
+        
+        const agentDialogueEventTypes = [
+            'observation', 'submission', 'internal_prompt', 'internal_response', 
+            'context_compaction_prompt', 'context_compaction_response',
+            'llm_event', 
+            'submission_outcome', 'internal_action_event', 'internal_outcome', 'internal_completion',
+            'manual_message_to_agent_llm', 'manual_llm_response_to_human', // These are effective types after mapping in SSE
+            'final_message_to_agent', 'final_agent_response_to_human', // These are effective types after mapping in SSE
+            'system_message', 
+            'error',
+            'agent_event', // Include agent_event for general agent activities
+            'connector_status', 'connector_error', // Include connector events
+            'human_assist_event', 'final_chat_event', // Include interaction events
+            'historical_log' // Include our fallback type
+        ];
+
+        let isRelevantDialogueEvent = agentDialogueEventTypes.includes(eventType);
+
+        // If top-level eventType is generic (like llm_event), check inner type
+        if (eventType === 'llm_event' && data.type) {
+            isRelevantDialogueEvent = [
+                'observation',
+                'submission',
+                'internal_prompt',
+                'internal_response',
+                'response',
+                'context_compaction_prompt',
+                'context_compaction_response',
+            ].includes(data.type);
+        } else if (eventType === 'agent_event') {
+            isRelevantDialogueEvent = ['actions_executed', 'submit_error'].includes(data.type);
+        }
+        
+        if (!isRelevantDialogueEvent) {
+             if(!isHistorical && eventType !== 'thinking_block' && eventType !== 'thinking_block_internal') {
+                // console.warn(`Skipping live event in agent log due to unrecognized type: ${eventType}`, data);
+             } else if (isHistorical && eventType !== 'thinking_block' && eventType !== 'thinking_block_internal') {
+                console.warn(`Skipping historical event in agent log due to unrecognized type: ${eventType}`, data);
+             }
+             return; 
+        }
+
+
+        if (agentSpecificBubbleLog.childElementCount === 1 && agentSpecificBubbleLog.firstChild && agentSpecificBubbleLog.firstChild.classList && agentSpecificBubbleLog.firstChild.classList.contains('initial-log-message')) {
+            agentSpecificBubbleLog.innerHTML = ''; 
+        }
+        
+        let bubbleContentHtml = "";
+        let rawTextForCopy = JSON.stringify(data, null, 2); 
+        const timeStr = new Date(timestamp * 1000).toLocaleTimeString();
+        let titlePrefix = `<strong>[${eventType.replace(/_/g, ' ').toUpperCase()} @ ${timeStr}]</strong>`; 
+        let bubbleStyle = 'chat-bubble-system text-xs';
+        let sourceType = 'station';
+
+        let thinkingHtml = "";
+        const thinkingContent = data.thinking_text || data.historical_thinking_text; 
+        if (thinkingContent && thinkingContent.trim() !== "") {
+            thinkingHtml = `
+                <div class="thinking-block border-l-4 border-sky-700 bg-slate-800/50 p-2 mb-2 text-slate-400 text-xs italic rounded">
+                    <strong class="text-sky-500 block mb-1">Agent Thinking:</strong>
+                    <div class="whitespace-pre-wrap">${escapeHtml(thinkingContent)}</div>
+                </div>
+            `;
+             rawTextForCopy = `Thinking:\n${thinkingContent}\n\nResponse:\n${(data.text_content || data.content || "")}`;
+        }
+        
+
+        switch (eventType) {
+            case 'system_message': 
+                const systemMessageContent = String(data.message || data.content || "");
+                titlePrefix = `<strong>[SYSTEM @ ${timeStr}] (Agent: ${escapeHtml(data.agent_name || currentSelectedAgentForDialogueView)})</strong>`;
+                bubbleContentHtml = `${titlePrefix} <div class="mt-1 text-sm markdown-content-host">${renderMarkdownForDashboard(systemMessageContent)}</div>`;
+                rawTextForCopy = systemMessageContent;
+                break;
+            case 'agent_event': 
+                 if (['actions_executed', 'submit_error'].includes(data.type)) {
+                    bubbleStyle = 'chat-bubble-system text-purple-300';
+                    let agentEventHeader = `<strong>[AGENT EVENT @ ${timeStr}] (Agent: ${escapeHtml(data.agent_name)}, Tick ${escapeHtml(String(data.tick))})</strong> - ${escapeHtml(data.type.replace(/_/g, ' '))}`;
+                    let agentEventContent = "";
+                    if(data.summary && Array.isArray(data.summary)) {
+                         agentEventContent = data.summary.map(s => `- ${s}`).join('\n'); 
+                         rawTextForCopy = `Agent: ${data.agent_name} (Tick ${data.tick}) - ${data.type.replace('_', ' ')}\nSummary:\n${data.summary.join('\n')}`;
+                    } else if (data.error) { 
+                        agentEventContent = `ERROR: ${data.error}`; 
+                        rawTextForCopy = `Agent Event Error for ${data.agent_name}: ${data.error}`;
+                    }
+                    bubbleContentHtml = `${agentEventHeader}<div class="mt-1 text-sm markdown-content-host">${renderMarkdownForDashboard(agentEventContent)}</div>`;
+                } else { return; } 
+                break;
+            
+            case 'llm_event': 
+            case 'observation': 
+            case 'submission':  
+            case 'internal_prompt': 
+            case 'internal_response':
+            case 'context_compaction_prompt':
+            case 'context_compaction_response':
+            case 'manual_message_to_agent_llm':
+            case 'manual_llm_response_to_human':
+            case 'final_message_to_agent':
+            case 'final_agent_response_to_human':
+            case 'historical_log':
+                const hasFullDialogueContent =
+                    (data.text_content !== undefined && data.text_content !== null && String(data.text_content) !== "") ||
+                    (data.content !== undefined && data.content !== null && String(data.content) !== "");
+                let dialogueMarkdownContent = "N/A (Content missing for Markdown rendering)";
+                if (hasFullDialogueContent) {
+                    dialogueMarkdownContent = String(data.text_content || data.content);
+                } else if (data.content_omitted) {
+                    dialogueMarkdownContent = "Content omitted from this live stream. Reload this agent's history to view the saved message.";
+                }
+                if (!thinkingHtml) { 
+                    rawTextForCopy = dialogueMarkdownContent;
+                }
+
+                let speaker = data.speaker || "Unknown";
+                let direction = data.direction; 
+
+                if (isHistorical || !direction) { 
+                    if (
+                        ['observation', 'internal_prompt', 'context_compaction_prompt', 'llm_event', 'historical_log'].includes(eventType)
+                        && (data.type === 'internal_prompt' || data.type === 'context_compaction_prompt' || speaker === 'Station')
+                    ) {
+                        speaker = data.speaker || "Station"; direction = 'to_llm';
+                    } else if (
+                        ['submission', 'internal_response', 'context_compaction_response', 'llm_event', 'historical_log'].includes(eventType)
+                        && (data.type === 'internal_response' || data.type === 'context_compaction_response' || data.type === 'response')
+                    ) {
+                        speaker = data.speaker || (data.agent_name || "Agent"); direction = 'from_llm';
+                    } else if (eventType === 'manual_message_to_agent_llm') {
+                        speaker = data.speaker || 'HumanAssistant'; direction = 'to_llm';
+                    } else if (eventType === 'manual_llm_response_to_human') {
+                        speaker = data.speaker || (data.agent_name || "Agent") + " (LLM)"; direction = 'from_llm';
+                    } else if (eventType === 'final_message_to_agent') {
+                        speaker = data.speaker || 'HumanFinalChat'; direction = 'to_llm';
+                    } else if (eventType === 'final_agent_response_to_human') {
+                        speaker = data.speaker || `${data.agent_name || 'Agent'} (FinalResponse)`; direction = 'from_llm';
+                    } else { // Default historical log direction
+                        direction = (speaker === 'Station' || speaker.startsWith('Station')) ? 'to_llm' : 'from_llm';
+                    }
+                } else if (eventType === 'llm_event') { 
+                     speaker = (data.direction === 'to_llm' ? 'Station' : (data.agent_name || 'AgentLLM'));
+                     if (data.type === 'internal_prompt') speaker = 'Station (Internal)';
+                     if (data.type === 'internal_response') speaker = `${data.agent_name || 'Agent'} (Internal LLM)`;
+                     if (data.type === 'context_compaction_prompt') speaker = 'Station (Context Compaction)';
+                     if (data.type === 'context_compaction_response') speaker = `${data.agent_name || 'Agent'} (Context Summary)`;
+                }
+
+                let headerText = `<strong>[${escapeHtml(speaker)} @ ${timeStr}] (Tick ${escapeHtml(String(data.tick || 'N/A'))})</strong>`;
+                if (
+                    eventType === 'llm_event'
+                    && ['internal_prompt', 'context_compaction_prompt', 'context_compaction_response'].includes(data.type)
+                ) {
+                     headerText += ` - ${escapeHtml(data.type.replace(/_/g, ' '))}`;
+                }
+                
+                bubbleContentHtml = `${headerText}${thinkingHtml}<div class="mt-1 text-sm markdown-content-host">${renderMarkdownForDashboard(dialogueMarkdownContent)}</div>`;
+                
+                bubbleStyle = (direction === 'to_llm') ? 'chat-bubble-station' : 'chat-bubble-agent';
+                sourceType = (direction === 'to_llm') ? 'station' : 'agent';
+                break;
+
+            case 'submission_outcome': 
+                 bubbleStyle = 'chat-bubble-system';
+                 titlePrefix = `<strong>[SUBMISSION OUTCOME @ ${timeStr}] (Agent: ${escapeHtml(data.agent_name || 'N/A')}, Tick ${escapeHtml(String(data.tick || 'N/A'))})</strong>`;
+                 let outcomeTextForMarkdown = `Actions Executed:\n${(data.actions_executed_summary || data.summary || []).map(s => `- ${s}`).join('\n')}`;
+                 if(data.error) outcomeTextForMarkdown += `\nError: ${data.error}`;
+                 
+                 let outcomeRendered = renderMarkdownForDashboard(outcomeTextForMarkdown);
+
+                 if(data.internal_action_initiated) {
+                     const handlerClass = data.internal_action_initiated.handler_class || "Unknown Handler";
+                     const initialPromptForSnippet = data.internal_action_initiated.text_content || data.internal_action_initiated.initial_prompt || "N/A";
+                     const snippet = initialPromptForSnippet.substring(0, 70) + (initialPromptForSnippet.length > 70 ? "..." : "");
+                     outcomeRendered += `<p class="text-xs mt-1 pl-4">Internal Action Started: ${escapeHtml(handlerClass)} - Prompt (snippet): ${escapeHtml(snippet)}</p>`;
+                 }
+                 bubbleContentHtml = `${titlePrefix} <div class="mt-1 text-sm markdown-content-host">${outcomeRendered}</div>`;
+                 rawTextForCopy = outcomeTextForMarkdown + (data.internal_action_initiated ? `\nInternal action snippet: ${data.internal_action_initiated.initial_prompt ? data.internal_action_initiated.initial_prompt.substring(0,70) : 'N/A'}` : '');
+                break;
+            
+            case 'internal_action_event': 
+                 bubbleStyle = 'chat-bubble-system text-amber-300'; 
+                 titlePrefix = `<strong>[INTERNAL ACTION @ ${timeStr}] (Agent: ${escapeHtml(data.agent_name)}, Tick ${escapeHtml(String(data.tick))})</strong>`;
+                 let internalStatusMsg = `Status: ${escapeHtml(data.status.toUpperCase())}`;
+                 if(data.handler) internalStatusMsg += ` | Handler: ${escapeHtml(data.handler)}. `;
+                 
+                 let internalContentDetailMarkdown = "";
+                 let liveInternalThinkingHtml = "";
+                 if (!isHistorical && data.thinking_text && data.thinking_text.trim() !== "") {
+                    liveInternalThinkingHtml = `
+                        <div class="thinking-block border-l-4 border-sky-700 bg-slate-800/50 p-2 mb-2 text-slate-400 text-xs italic rounded">
+                            <strong class="text-sky-500 block mb-1">Agent Thinking (Internal):</strong>
+                            <div class="whitespace-pre-wrap">${escapeHtml(data.thinking_text)}</div>
+                        </div>
+                    `;
+                 }
+
+                 if(data.status === 'start' && data.text_content) { 
+                     internalContentDetailMarkdown = data.text_content; 
+                     rawTextForCopy = `Internal Action Start for ${data.agent_name}. Handler: ${data.handler}. Initial Prompt: ${data.text_content}`;
+                 } else { 
+                    let plainTextDetails = "";
+                    if(data.message) plainTextDetails += data.message;
+                    if(data.updates && Array.isArray(data.updates)) plainTextDetails += ` | Delta updates: ${data.updates.join(', ')}. `;
+                    if(data.log && Array.isArray(data.log)) plainTextDetails += ` | Step log: ${data.log.join('; ')}. `;
+                    internalContentDetailMarkdown = plainTextDetails; 
+                    rawTextForCopy = plainTextDetails || JSON.stringify(data); 
+                 }
+                 bubbleContentHtml = `${titlePrefix} ${escapeHtml(internalStatusMsg)} ${liveInternalThinkingHtml || thinkingHtml} <div class="mt-1 text-sm markdown-content-host">${renderMarkdownForDashboard(internalContentDetailMarkdown)}</div>`;
+                break;
+            
+            case 'internal_outcome': 
+            case 'internal_completion': 
+                let internalOutcomeMarkdown = String(data.next_prompt || data.completion_message || "N/A");
+                rawTextForCopy = internalOutcomeMarkdown;
+                bubbleStyle = 'chat-bubble-station'; 
+                let internalOutcomeHeader = `<strong>[STATION (Internal) @ ${timeStr}] (Agent: ${escapeHtml(data.agent_name)}, Tick ${escapeHtml(String(data.tick))})</strong>`;
+                if (data.handler) internalOutcomeHeader += ` - Handler: ${escapeHtml(data.handler)}`;
+                
+                let internalOutcomeBodyRendered = `${thinkingHtml}<div class="mt-1 text-sm markdown-content-host">${renderMarkdownForDashboard(internalOutcomeMarkdown)}</div>`;
+                
+                if (data.actions_executed_in_step && data.actions_executed_in_step.length > 0) {
+                    const actionsListMarkdown = data.actions_executed_in_step.map(s => `- ${s}`).join('\n'); 
+                    internalOutcomeBodyRendered += `<div class="text-xs pl-4 mt-1 markdown-content-host"><strong>Step Log:</strong>${renderMarkdownForDashboard(actionsListMarkdown)}</div>`;
+                }
+                bubbleContentHtml = `${internalOutcomeHeader}${internalOutcomeBodyRendered}`;
+                break;
+            case 'error': 
+                bubbleStyle = 'chat-bubble-error';
+                let errorMessageContent = String(data.message || data.error || JSON.stringify(data));
+                titlePrefix = `<strong>[ERROR @ ${timeStr}] (Agent: ${escapeHtml(data.agent_name || currentSelectedAgentForDialogueView)})</strong>`;
+                bubbleContentHtml = `${titlePrefix} <div class="mt-1 text-sm markdown-content-host">${renderMarkdownForDashboard(errorMessageContent)}</div>`;
+                rawTextForCopy = `ERROR: ${errorMessageContent}`;
+                break;
+            default: 
+                console.warn(`Unhandled eventType in addMessageToAgentBubbleLog: ${eventType}`, eventData);
+                return; 
+        }
+        
+        const bubbleWrapper = createLogBubble(bubbleContentHtml, rawTextForCopy, bubbleStyle, {
+            eventType,
+            messageId: `agent:${currentSelectedAgentForDialogueView}:${eventType}:${timestamp || Date.now()}:${++logMessageSequence}`,
+            sourceType,
+            historyKey: eventData.historyKey
+        });
+        
+        const appendTarget = (isHistorical && agentHistoryRenderFragment) ? agentHistoryRenderFragment : agentSpecificBubbleLog;
+        appendTarget.appendChild(bubbleWrapper);
+
+        if (isHistorical && appendTarget === agentSpecificBubbleLog && agentSpecificBubbleLog.lastChild === bubbleWrapper) {
+            agentSpecificBubbleLog.scrollTop = agentSpecificBubbleLog.scrollHeight;
+        } else if (!isHistorical) {
+            if (agentSpecificBubbleLog.scrollHeight - agentSpecificBubbleLog.scrollTop < agentSpecificBubbleLog.clientHeight + 350) {
+                agentSpecificBubbleLog.scrollTop = agentSpecificBubbleLog.scrollHeight;
+            }
+        }
+    }
+
+    async function fetchApi(endpoint, method = 'GET', body = null) {
+        // Use endpoint directly (no path prefix needed)
+        const fullEndpoint = endpoint;
+        
+        const options = { method, headers: { 'Content-Type': 'application/json', } };
+        if (body) options.body = JSON.stringify(body);
+        try {
+            const response = await fetch(fullEndpoint, options);
+            if (!response.ok) {
+                let errorData;
+                try { errorData = await response.json(); } 
+                catch (e) { errorData = { message: `HTTP error! Status: ${response.status} ${response.statusText}` }; }
+                throw new Error(errorData.message || errorData.error || `Request failed: ${response.status}`);
+            }
+            return await response.json();
+        } catch (error) {
+            console.error(`API call to ${endpoint} failed:`, error);
+            showDashboardStatus(`Error: ${error.message || 'Network request failed or non-JSON response.'}`, 'error');
+            throw error; 
+        }
+    }
+
+    function updateOrchestratorControlButtons(status) {
+        if (!status) { console.warn("updateOrchestratorControlButtons called with null status"); return; }
+        orchestratorState = status; 
+
+        const isPrepared = status.is_prepared;
+        const isRunning = status.is_running;
+        const isPaused = status.is_paused;
+        const isWaiting = status.is_waiting;
+        const pauseRequested = status.pause_requested;
+
+        // Handle the Pause/Cancel Pause button logic
+        if (pauseOrchestratorButton) {
+            if (pauseRequested && isRunning && !isPaused) {
+                // A pause has been requested but not yet activated
+                pauseOrchestratorButton.textContent = 'Cancel Pause';
+                pauseOrchestratorButton.classList.remove('bg-amber-600', 'hover:bg-amber-500');
+                pauseOrchestratorButton.classList.add('bg-sky-600', 'hover:bg-sky-500');
+                pauseOrchestratorButton.disabled = false;
+            } else {
+                // Normal state
+                pauseOrchestratorButton.textContent = 'Pause';
+                pauseOrchestratorButton.classList.remove('bg-sky-600', 'hover:bg-sky-500');
+                pauseOrchestratorButton.classList.add('bg-amber-600', 'hover:bg-amber-500');
+                pauseOrchestratorButton.disabled = !isRunning || isPaused;
+            }
+        }
+
+        if(startLoopButton) startLoopButton.disabled = !isPrepared || isRunning;
+        if(resumeOrchestratorButton) resumeOrchestratorButton.disabled = !isRunning || (!isPaused && !isWaiting);
+        if(stopOrchestratorButton) stopOrchestratorButton.disabled = !isRunning && !isPrepared;
+        
+        // Create agent can work anytime since it doesn't conflict with running orchestrator
+        if(createApiAgentModalButton) createApiAgentModalButton.disabled = false;
+
+        if (openTemporalChatModalButton) {
+            openTemporalChatModalButton.disabled = false;
+        }
+        
+        // End agent session can be requested at any time, unless the agent's session has already ended.
+        if (endApiAgentSessionButton) {
+            const selectedAgentName = agentSelectorDashboard ? agentSelectorDashboard.value : "all";
+            const selectedAgentData = fullAgentListCache.find(a => a.name === selectedAgentName);
+            let isEnded = false;
+            let endRequested = false;
+            if (selectedAgentData) {
+                isEnded = selectedAgentData.status.startsWith("Session Ended") || selectedAgentData.status.startsWith("Ascended");
+                endRequested = selectedAgentData.session_end_requested;
+            }
+
+            if (endRequested) {
+                endApiAgentSessionButton.disabled = true;
+                endApiAgentSessionButton.textContent = "End Requested";
+            } else {
+                endApiAgentSessionButton.disabled = (selectedAgentName === "all") || isEnded;
+                endApiAgentSessionButton.textContent = "End Agent";
+            }
+        }
+        
+        const selectedAgentName = agentSelectorDashboard ? agentSelectorDashboard.value : "all";
+        const selectedAgentData = fullAgentListCache.find(a => a.name === selectedAgentName);
+        const isReviewerSelected = selectedAgentName === "Reviewer";
+
+        // Update Direct Message button (unified for living and ended agents)
+        if (openDirectMessageModalButton) {
+            const isSpecificAgentSelected = selectedAgentName && selectedAgentName !== "all";
+            const isAscended = selectedAgentData && selectedAgentData.status.startsWith("Ascended");
+            const canSendDirectMessage = (isReviewerSelected || (!!selectedAgentData && !isAscended)) && !isDirectMessageInProgress;
+            openDirectMessageModalButton.disabled = !(isSpecificAgentSelected && canSendDirectMessage);
+        }
+
+        // Update Resolve Request button visibility (only show when selected agent has pending request)
+        if (resolveHumanInterventionButton) {
+            const isSpecificAgentSelected = selectedAgentName && selectedAgentName !== "all";
+            const selectedAgentHasPendingRequest = isSpecificAgentSelected && 
+                status.agents_awaiting_human && 
+                status.agents_awaiting_human.includes(selectedAgentName);
+            
+            resolveHumanInterventionButton.classList.toggle('hidden', !selectedAgentHasPendingRequest);
+            // No need to check orchestrator state - button can be used even when running
+            resolveHumanInterventionButton.disabled = false;
+        }
+    }
+
+    async function getStationVersion() {
+        try {
+            const data = await fetchApi('/api/station/version');
+            if (data.success && data.version) {
+                if (stationVersionDashboard) {
+                    stationVersionDashboard.textContent = data.version;
+                }
+            }
+        } catch (error) {
+            console.error('Error fetching station version:', error);
+            if (stationVersionDashboard) {
+                stationVersionDashboard.textContent = 'Error';
+            }
+        }
+    }
+
+    async function updateStationStatistics() {
+        try {
+            const data = await fetchApi('/api/station/statistics');
+            if (data.success && data.statistics) {
+                const stats = data.statistics;
+
+                const formatJobLine = (exp) => {
+                    const elapsedMin = Math.floor((exp.elapsed_seconds || 0) / 60);
+                    const elapsedSec = (exp.elapsed_seconds || 0) % 60;
+                    const status = exp.status || 'unknown';
+                    const executionSource = (exp.job_type === 'archive_survey')
+                        ? 'archive surveyor'
+                        : exp.system_baseline
+                        ? 'system baseline'
+                        : ((exp.execution_source || 'coder') === 'direct' ? 'direct evaluator' : 'coder');
+                    const idLabel = exp.job_type === 'archive_survey'
+                        ? exp.evaluation_id
+                        : `Eval ${exp.evaluation_id}`;
+                    return `${idLabel}: ${exp.title} (${exp.agent_name}, ${status}, ${executionSource}, ${elapsedMin}m${elapsedSec}s)`;
+                };
+                // Update pending human requests
+                const pendingRequests = stats.pending_human_requests;
+                const requestCount = pendingRequests.request_ids.length;
+                const countElement = document.getElementById('pending-requests-count');
+                const detailsElement = document.getElementById('pending-requests-details');
+                
+                if (countElement) {
+                    countElement.textContent = requestCount > 0 ? requestCount : '0';
+                }
+                
+                if (detailsElement && requestCount > 0) {
+                    const requestIds = pendingRequests.request_ids.join(', ');
+                    const agents = pendingRequests.agents.join(', ');
+                    detailsElement.innerHTML = `IDs: ${requestIds}<br>Agents: ${agents}`;
+                    detailsElement.classList.remove('hidden');
+                    setTooltipIfPresent('pending-requests-metric-card', `IDs: ${requestIds}\nAgents: ${agents}`);
+                } else if (detailsElement) {
+                    detailsElement.classList.add('hidden');
+                    setTooltipIfPresent('pending-requests-metric-card', '');
+                }
+                
+                // Update jobs
+                const runningCount = stats.running_jobs_count ?? stats.running_experiments_count ?? 0;
+                const runningJobs = stats.running_jobs || stats.running_experiments || [];
+                const queuedCount = stats.queued_jobs_count ?? stats.queued_experiments_count ?? 0;
+                const queuedJobs = stats.queued_jobs || stats.queued_experiments || [];
+                const totalJobsCount = runningCount + queuedCount;
+                const countElementRunning = document.getElementById('running-experiments-count');
+                const detailsElementRunning = document.getElementById('running-experiments-details');
+                
+                if (countElementRunning) {
+                    countElementRunning.textContent = totalJobsCount > 0 ? totalJobsCount : '0';
+                }
+                
+                if (detailsElementRunning && totalJobsCount > 0) {
+                    const detailSections = [];
+                    if (runningJobs.length > 0) {
+                        detailSections.push(`Running: ${runningJobs.map(formatJobLine).join('<br>')}`);
+                    }
+                    if (queuedJobs.length > 0) {
+                        detailSections.push(`Queued: ${queuedJobs.map(formatJobLine).join('<br>')}`);
+                    }
+                    const detailsHtml = detailSections.join('<br>');
+                    detailsElementRunning.innerHTML = detailsHtml;
+                    detailsElementRunning.classList.remove('hidden');
+                    const tooltipSections = [];
+                    tooltipSections.push(`Running Jobs (${runningCount})`);
+                    tooltipSections.push(runningJobs.length > 0 ? runningJobs.map(formatJobLine).join('\n') : 'None');
+                    tooltipSections.push(`Queued Jobs (${queuedCount})`);
+                    tooltipSections.push(queuedJobs.length > 0 ? queuedJobs.map(formatJobLine).join('\n') : 'None');
+                    setTooltipIfPresent('running-experiments-metric-card', tooltipSections.join('\n'));
+                } else if (detailsElementRunning) {
+                    detailsElementRunning.classList.add('hidden');
+                    setTooltipIfPresent('running-experiments-metric-card', '');
+                }
+
+                updateTickTimingFromStats(stats.tick_timing);
+                
+                // Update top research submission
+                const topSubmission = stats.top_research_submission;
+                const scoreElement = document.getElementById('top-research-score');
+                const detailsElementResearch = document.getElementById('top-research-details');
+                
+                // Check for both undefined and null to handle no-score mode
+                if (scoreElement && topSubmission && topSubmission !== null) {
+                    scoreElement.textContent = formatTopResearchScore(topSubmission.score);
+                    const currentTick = Number(stats.current_tick);
+                    const topSubmittedTick = Number(topSubmission.submitted_tick);
+                    const topScoreTickAge = Number.isFinite(currentTick) && Number.isFinite(topSubmittedTick)
+                        ? Math.max(0, currentTick - topSubmittedTick)
+                        : null;
+                    const topScoreAgeColor = getTopScoreAgeColor(topScoreTickAge);
+                    if (topScoreAgeColor) {
+                        scoreElement.style.setProperty('--top-score-age-color', topScoreAgeColor);
+                        scoreElement.style.color = topScoreAgeColor;
+                        scoreElement.classList.add('top-score-age-colored');
+                    } else {
+                        scoreElement.style.removeProperty('--top-score-age-color');
+                        scoreElement.style.color = '';
+                        scoreElement.classList.remove('top-score-age-colored');
+                    }
+                    if (detailsElementResearch) {
+                        detailsElementResearch.innerHTML = 
+                            `ID: ${topSubmission.evaluation_id}<br>` +
+                            `Title: ${topSubmission.title}<br>` +
+                            `Agent: ${topSubmission.agent_name}<br>` +
+                            `Tick: ${topSubmission.submitted_tick}`;
+                        detailsElementResearch.classList.remove('hidden');
+                    }
+                    setTooltipIfPresent(
+                        'top-research-metric-card',
+                        `Score: ${topSubmission.score}\n` +
+                        `ID: ${topSubmission.evaluation_id}\n` +
+                        `Title: ${topSubmission.title || ''}\n` +
+                        `Agent: ${topSubmission.agent_name || ''}\n` +
+                        `Tick: ${topSubmission.submitted_tick ?? ''}\n` +
+                        `Ticks since last top score: ${topScoreTickAge === null ? 'N/A' : topScoreTickAge}`
+                    );
+                } else if (scoreElement) {
+                    scoreElement.textContent = 'N/A';
+                    scoreElement.style.removeProperty('--top-score-age-color');
+                    scoreElement.style.color = '';
+                    scoreElement.classList.remove('top-score-age-colored');
+                    if (detailsElementResearch) {
+                        detailsElementResearch.classList.add('hidden');
+                    }
+                    setTooltipIfPresent('top-research-metric-card', 'No scored research submission is available.');
+                }
+            }
+        } catch (error) {
+            console.error('Error fetching station statistics:', error);
+        }
+    }
+
+    async function getOrchestratorStatus() {
+        try {
+            const data = await fetchApi('/api/orchestrator/status');
+            if (data.success && data.status) {
+                const status = data.status;
+                if(orchestratorStatusDot) orchestratorStatusDot.className = 'status-dot'; 
+                if (status.is_running) {
+                    if (status.is_waiting) {
+                        // Waiting state (running but waiting for conditions to resolve)
+                        if(orchestratorStatusDisplay) orchestratorStatusDisplay.textContent = 'Waiting';
+                        if(orchestratorStatusDot) orchestratorStatusDot.classList.add('status-waiting');
+                    } else if (status.is_paused) {
+                        if(orchestratorStatusDisplay) orchestratorStatusDisplay.textContent = 'Paused';
+                        if(orchestratorStatusDot) orchestratorStatusDot.classList.add('status-paused');
+                    } else {
+                        if(orchestratorStatusDisplay) orchestratorStatusDisplay.textContent = 'Running';
+                        if(orchestratorStatusDot) orchestratorStatusDot.classList.add('status-running');
+                    }
+                } else if (status.is_prepared) {
+                    if(orchestratorStatusDisplay) orchestratorStatusDisplay.textContent = 'Prepared (Idle)';
+                    if(orchestratorStatusDot) orchestratorStatusDot.classList.add('status-prepared');
+                }
+                else {
+                    if(orchestratorStatusDisplay) orchestratorStatusDisplay.textContent = 'Idle / Stopped';
+                    if(orchestratorStatusDot) orchestratorStatusDot.classList.add('status-idle');
+                }
+                
+                // Update pause/wait reason display
+                let reasonText = "";
+                if (status.is_waiting) {
+                    reasonText = Object.values(status.waiting_reasons || {}).join(', ');
+                } else if (status.is_paused) {
+                    reasonText = status.pause_reason || "Manual Pause";
+                }
+                if(orchestratorPauseReasonDisplay) orchestratorPauseReasonDisplay.textContent = reasonText;
+                
+                // Update next agent display
+                if(orchestratorNextAgentDisplay) {
+                    const syncMode = String(status.sync_mode || cachedSyncMode || 'parallel').trim().toLowerCase();
+                    const parallelStatusText = syncMode === 'parallel' ? formatParallelTickStatus(status.parallel_tick_status) : '';
+                    if (syncMode === 'parallel' && status.is_running && !status.is_paused && parallelStatusText) {
+                        orchestratorNextAgentDisplay.textContent = parallelStatusText;
+                    } else if (syncMode === 'parallel' && status.is_running && !status.is_paused && !status.is_waiting) {
+                        orchestratorNextAgentDisplay.textContent = "Parallel mode: preparing tick status...";
+                    } else if (status.is_running && !status.is_paused && !status.is_waiting && status.next_agent_to_act !== "N/A") {
+                        orchestratorNextAgentDisplay.textContent = `Next: ${status.next_agent_to_act} (Index: ${status.next_agent_index})`;
+                    } else if (status.is_waiting) {
+                        orchestratorNextAgentDisplay.textContent = "Waiting for conditions to resolve...";
+                    } else if (status.is_paused) {
+                        orchestratorNextAgentDisplay.textContent = "Paused...";
+                    } else if (status.is_prepared) {
+                        orchestratorNextAgentDisplay.textContent = "Ready to run.";
+                    } else {
+                        orchestratorNextAgentDisplay.textContent = "Not running or no agents.";
+                    }
+                }
+                
+                if(stationTickDashboard) stationTickDashboard.textContent = status.current_tick !== -1 ? status.current_tick : "N/A";
+
+                // Update station status if it changed
+                if (status.station_status && status.station_status !== cachedStationStatus) {
+                    cachedStationStatus = status.station_status;
+                    updateStationStatusInHeader(cachedStationStatus);
+                }
+
+                updateOrchestratorControlButtons(status);
+            } else {
+                showDashboardStatus(data.error || 'Failed to get orchestrator status.', 'error');
+                if(orchestratorStatusDisplay) orchestratorStatusDisplay.textContent = "Error";
+                if(orchestratorStatusDot) orchestratorStatusDot.className = 'status-dot status-error';
+            }
+        } catch (error) { 
+            if(orchestratorStatusDisplay) orchestratorStatusDisplay.textContent = "Offline";
+            if(orchestratorStatusDot) orchestratorStatusDot.className = 'status-dot status-error';
+        }
+    }
+
+    async function fetchAgentsForDashboard() {
+         try {
+            const data = await fetchApi('/api/agents');
+            const orchestratorStatusData = await fetchApi('/api/orchestrator/status');
+            
+            if (data.success && agentSelectorDashboard) {
+                fullAgentListCache = data.agents;
+                const currentTurnOrder = orchestratorStatusData.success ? orchestratorStatusData.status.turn_order : [];
+                
+                const currentVal = agentSelectorDashboard.value;
+                agentSelectorDashboard.innerHTML = '<option value="all">Global Notifications</option><option value="Reviewer">Reviewer</option>';
+                
+                let activeAgentsInOrder = [];
+                let otherAgents = [];
+
+                currentTurnOrder.forEach(nameInOrder => {
+                    const agentInfo = fullAgentListCache.find(a => a.name === nameInOrder);
+                    if (agentInfo) activeAgentsInOrder.push(agentInfo);
+                });
+
+                fullAgentListCache.forEach(agentInfo => {
+                    if (!currentTurnOrder.includes(agentInfo.name)) otherAgents.push(agentInfo);
+                });
+
+                otherAgents.sort((a, b) => {
+                    if (a.status.startsWith("Ascended") && !b.status.startsWith("Ascended")) return 1;
+                    if (!a.status.startsWith("Ascended") && b.status.startsWith("Ascended")) return -1;
+                    if (a.status.startsWith("Session Ended") && !b.status.startsWith("Session Ended")) return 1;
+                    if (!a.status.startsWith("Session Ended") && b.status.startsWith("Session Ended")) return -1;
+                    return a.name.localeCompare(b.name);
+                });
+
+                activeAgentsInOrder.forEach(agent => {
+                    const option = document.createElement('option');
+                    option.value = agent.name;
+                    option.textContent = formatAgentDisplayName(agent);
+                    agentSelectorDashboard.appendChild(option);
+                });
+
+                if (activeAgentsInOrder.length > 0 && otherAgents.length > 0) {
+                    const separator = document.createElement('option');
+                    separator.disabled = true;
+                    separator.textContent = '--- Other Agents ---';
+                    agentSelectorDashboard.appendChild(separator);
+                }
+                
+                otherAgents.forEach(agent => {
+                    const option = document.createElement('option');
+                    option.value = agent.name;
+                    option.textContent = formatAgentDisplayName(agent);
+                    agentSelectorDashboard.appendChild(option);
+                });
+
+                if (Array.from(agentSelectorDashboard.options).some(opt => opt.value === currentVal)) {
+                    agentSelectorDashboard.value = currentVal;
+                } else { 
+                    agentSelectorDashboard.value = "all"; 
+                }
+                updateCopySystemPromptButtonState();
+            }
+        } catch (error) { console.error("Error fetching and populating agents:", error); }
+    }
+
+    function buildHistoryApiUrl(agentName, options = {}) {
+        const params = new URLSearchParams();
+        if (options.full) {
+            params.set('full', 'true');
+        } else {
+            params.set('window', options.window || historyWindowMode);
+            params.set('ticks', String(options.ticks || HISTORY_WINDOW_TICKS));
+        }
+        const query = params.toString();
+        return `/api/agent_dialogue_history/${encodeURIComponent(agentName)}${query ? `?${query}` : ''}`;
+    }
+
+    function captureAgentLogScrollAnchor() {
+        if (!agentSpecificBubbleLog) return null;
+        const containerRect = agentSpecificBubbleLog.getBoundingClientRect();
+        const bubbles = Array.from(agentSpecificBubbleLog.querySelectorAll('.chat-bubble[data-history-key]'));
+        for (const bubble of bubbles) {
+            const rect = bubble.getBoundingClientRect();
+            if (rect.bottom >= containerRect.top) {
+                return {
+                    historyKey: bubble.dataset.historyKey,
+                    offsetTop: rect.top - containerRect.top,
+                    fallbackScrollTop: agentSpecificBubbleLog.scrollTop,
+                };
+            }
+        }
+        return { historyKey: null, offsetTop: 0, fallbackScrollTop: agentSpecificBubbleLog.scrollTop };
+    }
+
+    function restoreAgentLogScrollAnchor(anchor) {
+        if (!agentSpecificBubbleLog || !anchor) return;
+        if (!anchor.historyKey) {
+            agentSpecificBubbleLog.scrollTop = anchor.fallbackScrollTop || 0;
+            return;
+        }
+        const escapedKey = (window.CSS && typeof window.CSS.escape === 'function')
+            ? window.CSS.escape(anchor.historyKey)
+            : String(anchor.historyKey).replace(/["\\]/g, '\\$&');
+        const bubble = agentSpecificBubbleLog.querySelector(`.chat-bubble[data-history-key="${escapedKey}"]`);
+        if (!bubble) {
+            agentSpecificBubbleLog.scrollTop = anchor.fallbackScrollTop || 0;
+            return;
+        }
+        const containerRect = agentSpecificBubbleLog.getBoundingClientRect();
+        const rect = bubble.getBoundingClientRect();
+        agentSpecificBubbleLog.scrollTop += (rect.top - containerRect.top) - anchor.offsetTop;
+    }
+
+    function captureCurrentSourceCollapseState() {
+        return {
+            agent: isCurrentLogSourceCollapsed('agent'),
+            station: isCurrentLogSourceCollapsed('station'),
+        };
+    }
+
+    function restoreCurrentSourceCollapseState(state) {
+        if (!state) return;
+        setCurrentLogSourceCollapsed('agent', !!state.agent);
+        setCurrentLogSourceCollapsed('station', !!state.station);
+    }
+
+    function getHistoryEntryKey(logEntry) {
+        const stableParts = [
+            logEntry.tick ?? 'no_tick',
+            logEntry.type || 'historical_log',
+            logEntry.speaker || '',
+            logEntry.interaction_id || '',
+            logEntry.internal_step ?? '',
+            String(logEntry.content || logEntry.text_content || logEntry.next_prompt || logEntry.completion_message || '').slice(0, 80),
+        ];
+        return stableParts.join('|');
+    }
+
+    function isHistoricalThinkingEntry(entryType) {
+        return entryType === 'thinking_block' ||
+            entryType === 'thinking_block_internal' ||
+            entryType === 'thinking_block_context_compaction' ||
+            entryType === 'manual_llm_thinking_for_human';
+    }
+
+    function isStationSpeaker(speaker) {
+        return !!speaker && (speaker === 'Station' || String(speaker).startsWith('Station'));
+    }
+
+    function isHistoricalThinkingTarget(logEntry, pendingThinking) {
+        if (!pendingThinking) return false;
+        const entryType = logEntry.type || 'historical_log';
+        const targetTypes = new Set([
+            'submission',
+            'internal_response',
+            'context_compaction_response',
+            'manual_llm_response_to_human',
+            'final_agent_response_to_human',
+        ]);
+        if (!targetTypes.has(entryType)) return false;
+        if (isStationSpeaker(logEntry.speaker)) return false;
+
+        if (pendingThinking.tick !== undefined && pendingThinking.tick !== null &&
+            logEntry.tick !== undefined && logEntry.tick !== null &&
+            String(pendingThinking.tick) !== String(logEntry.tick)) {
+            return false;
+        }
+
+        const pendingAgent = pendingThinking.agent_name || currentSelectedAgentForDialogueView;
+        const entryAgent = logEntry.agent_name || currentSelectedAgentForDialogueView;
+        return !pendingAgent || !entryAgent || pendingAgent === entryAgent;
+    }
+
+    function renderHistoryEntries(historyToDisplay) {
+        let pendingHistoricalThinking = null;
+        const previousHistoryRenderFragment = agentHistoryRenderFragment;
+        agentHistoryRenderFragment = document.createDocumentFragment();
+
+        try {
+            historyToDisplay.forEach((logEntry) => {
+                const entryType = logEntry.type || 'historical_log';
+
+                if (isHistoricalThinkingEntry(entryType)) {
+                    pendingHistoricalThinking = {
+                        text: String(logEntry.content || ""),
+                        tick: logEntry.tick,
+                        agent_name: logEntry.agent_name || currentSelectedAgentForDialogueView,
+                    };
+                    return;
+                }
+
+                const attachedHistoricalThinking = isHistoricalThinkingTarget(logEntry, pendingHistoricalThinking)
+                    ? pendingHistoricalThinking.text
+                    : null;
+                pendingHistoricalThinking = null;
+
+                const sseLikeEventData = {
+                    event: entryType,
+                    historyKey: getHistoryEntryKey(logEntry),
+                    data: {
+                        agent_name: logEntry.agent_name || currentSelectedAgentForDialogueView,
+                        tick: logEntry.tick,
+                        speaker: logEntry.speaker,
+                        text_content: logEntry.text_content || logEntry.content,
+                        content: logEntry.content,
+                        actions_executed_summary: logEntry.actions_executed_summary,
+                        error: logEntry.error,
+                        internal_action_initiated: logEntry.internal_action_initiated,
+                        status: logEntry.status,
+                        handler: logEntry.handler,
+                        direction: logEntry.direction,
+                        type: logEntry.type,
+                        snippet: logEntry.snippet,
+                        full_length: logEntry.full_length,
+                        interaction_id: logEntry.interaction_id,
+                        next_prompt: logEntry.next_prompt,
+                        actions_executed_in_step: logEntry.actions_executed_in_step,
+                        completion_message: logEntry.completion_message,
+                        token_info: logEntry.token_info,
+                        historical_thinking_text: attachedHistoricalThinking,
+                        ...(logEntry.data && typeof logEntry.data === 'object' ? logEntry.data : {})
+                    },
+                    timestamp: logEntry.timestamp || (logEntry.tick !== undefined ? (Date.now()/1000 - (200000 - logEntry.tick*1000 - (logEntry.internal_step || 0)*10 )) : Date.now()/1000)
+                };
+
+                if(logEntry.content && !sseLikeEventData.data.text_content) {
+                    sseLikeEventData.data.text_content = logEntry.content;
+                }
+                if(logEntry.next_prompt && (entryType === 'internal_outcome') && !sseLikeEventData.data.text_content) {
+                    sseLikeEventData.data.text_content = logEntry.next_prompt;
+                }
+                addMessageToAgentBubbleLog(sseLikeEventData, true);
+            });
+
+            if (agentSpecificBubbleLog && agentHistoryRenderFragment.childNodes.length > 0) {
+                agentSpecificBubbleLog.appendChild(agentHistoryRenderFragment);
+                agentSpecificBubbleLog.scrollTop = agentSpecificBubbleLog.scrollHeight;
+            }
+        } finally {
+            agentHistoryRenderFragment = previousHistoryRenderFragment;
+        }
+    }
+
+    async function handleAgentDialogueViewChange(loadFullHistory = false) {
+        if (!agentSelectorDashboard || !globalNotificationBubbleLog || !agentSpecificBubbleLog || !logViewTitle) {
+            console.error("One or more essential log view DOM elements are missing.");
+            return;
+        }
+        
+        const newSelectedAgent = agentSelectorDashboard.value;
+        const wasLoadingAgent = isLoadingHistoryForAgent;
+        isLoadingHistoryForAgent = (newSelectedAgent !== "all") ? newSelectedAgent : null; 
+        currentSelectedAgentForDialogueView = newSelectedAgent;
+        updateHistoryWindowSelector();
+
+        showLoadFullHistoryButton(false);
+
+        if (currentSelectedAgentForDialogueView === "all") {
+            globalNotificationBubbleLog.style.display = "flex";
+            agentSpecificBubbleLog.style.display = "none";
+            logViewTitle.textContent = "Global Notifications";
+            isLoadingHistoryForAgent = null; 
+            showHistoryWindowSelector(true);
+        } else {
+            globalNotificationBubbleLog.style.display = "none";
+            agentSpecificBubbleLog.style.display = "flex"; 
+            logViewTitle.textContent = `Dialogue: ${currentSelectedAgentForDialogueView}`;
+            
+            if (newSelectedAgent !== wasLoadingAgent) {
+                agentSpecificBubbleLog.innerHTML = ''; 
+                const initialMessageDiv = document.createElement('div');
+                initialMessageDiv.classList.add('chat-bubble', 'chat-bubble-system', 'initial-log-message'); 
+                initialMessageDiv.textContent = `Loading history for ${currentSelectedAgentForDialogueView}...`;
+                agentSpecificBubbleLog.appendChild(initialMessageDiv);
+            }
+
+            showDashboardStatus(`Loading ${historyWindowMode} ${HISTORY_WINDOW_TICKS} tick history for ${currentSelectedAgentForDialogueView}...`, 'info', 0);
+            try {
+                const apiUrl = buildHistoryApiUrl(currentSelectedAgentForDialogueView, { full: loadFullHistory });
+                const apiData = await fetchApi(apiUrl);
+                
+                if (currentSelectedAgentForDialogueView !== newSelectedAgent) {
+                    isLoadingHistoryForAgent = null; 
+                    return;
+                }
+
+                if (agentSpecificBubbleLog.firstChild && agentSpecificBubbleLog.firstChild.classList.contains('initial-log-message')) {
+                    agentSpecificBubbleLog.innerHTML = ''; 
+                }
+
+                let historyToDisplay = [];
+                
+                if (apiData.success && apiData.history) {
+                    if (loadFullHistory) {
+                        fullDialogueHistoryCache[currentSelectedAgentForDialogueView] = apiData.history;
+                    } else {
+                        delete fullDialogueHistoryCache[currentSelectedAgentForDialogueView];
+                    }
+                    historyToDisplay = apiData.history;
+                    
+                    if (apiData.history.length === 0) {
+                        addMessageToAgentBubbleLog({event: "system_message", data: {message: `No dialogue history found for ${currentSelectedAgentForDialogueView}. New live messages for this agent will be appended.`}, timestamp: Date.now()/1000}, true);
+                    } else {
+                        const isPartialWindow = !!(apiData.range && apiData.range.is_partial);
+                        if (apiData.is_truncated || isPartialWindow) {
+                            showHistoryWindowSelector(false);
+                            showLoadFullHistoryButton(true, 'Load Full History');
+                            addMessageToAgentBubbleLog({
+                                event: "system_message", 
+                                data: { message: `Showing ${historyWindowMode} ${HISTORY_WINDOW_TICKS} tick dialogue history. Click 'Load Full History' to load the full history in the background.` },
+                                timestamp: Date.now()/1000
+                            }, true);
+                        }
+                        
+                        renderHistoryEntries(historyToDisplay);
+                        if (!loadFullHistory && historyWindowMode === 'earliest') {
+                            agentSpecificBubbleLog.scrollTop = 0;
+                        }
+                    }
+                    const rangeText = apiData.range && apiData.range.mode !== 'full'
+                        ? ` (${apiData.range.mode} ${apiData.range.ticks} ticks)`
+                        : '';
+                    showDashboardStatus(`History loaded for ${currentSelectedAgentForDialogueView}${rangeText} (${historyToDisplay.length} entries).`, 'success');
+                } else {
+                    showDashboardStatus(apiData.error || `Failed to load history for ${currentSelectedAgentForDialogueView}.`, 'error');
+                     addMessageToAgentBubbleLog({event: "error", data: {message: `Failed to load history for ${currentSelectedAgentForDialogueView}. ${apiData.error || ''}`}, timestamp: Date.now()/1000}, true);
+                }
+            } catch (error) { 
+                console.error(`Error in handleAgentDialogueViewChange for ${newSelectedAgent}:`, error);
+            }
+            finally {
+                if (isLoadingHistoryForAgent === newSelectedAgent) {
+                    isLoadingHistoryForAgent = null;
+                }
+            }
+        }
+        updateSourceToggleButtons();
+        getOrchestratorStatus(); 
+    }
+
+    async function loadFullHistoryInBackground() {
+        if (!currentSelectedAgentForDialogueView || currentSelectedAgentForDialogueView === "all") return;
+        const agentName = currentSelectedAgentForDialogueView;
+        const cachedFullHistory = fullDialogueHistoryCache[agentName];
+        if (Array.isArray(cachedFullHistory) && cachedFullHistory.length > 0) {
+            const scrollAnchor = captureAgentLogScrollAnchor();
+            const sourceCollapseState = captureCurrentSourceCollapseState();
+            agentSpecificBubbleLog.innerHTML = '';
+            renderHistoryEntries(cachedFullHistory);
+            restoreCurrentSourceCollapseState(sourceCollapseState);
+            restoreAgentLogScrollAnchor(scrollAnchor);
+            showLoadFullHistoryButton(false, 'Load Full History');
+            showHistoryWindowSelector(false);
+            showDashboardStatus(`Showing full history for ${agentName} (${cachedFullHistory.length} entries).`, 'success');
+            return;
+        }
+        if (backgroundHistoryLoads.get(agentName)) {
+            showDashboardStatus(`Full history is already loading for ${agentName}.`, 'info');
+            return;
+        }
+
+        backgroundHistoryLoads.set(agentName, true);
+        if (loadFullHistoryButton) {
+            loadFullHistoryButton.disabled = true;
+            loadFullHistoryButton.textContent = 'Loading Full...';
+        }
+        showDashboardStatus(`Loading full history for ${agentName} in the background...`, 'info', 0);
+
+        try {
+            const apiData = await fetchApi(buildHistoryApiUrl(agentName, { full: true }));
+            if (!apiData.success || !apiData.history) {
+                showDashboardStatus(apiData.error || `Failed to load full history for ${agentName}.`, 'error');
+                return;
+            }
+
+            fullDialogueHistoryCache[agentName] = apiData.history;
+            if (currentSelectedAgentForDialogueView === agentName) {
+                const scrollAnchor = captureAgentLogScrollAnchor();
+                const sourceCollapseState = captureCurrentSourceCollapseState();
+                agentSpecificBubbleLog.innerHTML = '';
+                renderHistoryEntries(apiData.history);
+                restoreCurrentSourceCollapseState(sourceCollapseState);
+                restoreAgentLogScrollAnchor(scrollAnchor);
+                showLoadFullHistoryButton(false, 'Load Full History');
+                showHistoryWindowSelector(false);
+            }
+            showDashboardStatus(`Full history loaded for ${agentName} (${apiData.history.length} entries).`, 'success');
+        } catch (error) {
+            console.error(`Error loading full history for ${agentName}:`, error);
+        } finally {
+            backgroundHistoryLoads.delete(agentName);
+            if (loadFullHistoryButton) {
+                loadFullHistoryButton.disabled = false;
+                if (!loadFullHistoryButton.classList.contains('hidden')) {
+                    loadFullHistoryButton.textContent = 'Load Full History';
+                }
+            }
+        }
+    }
+    
+    // Fetch recent events for polling mode (fallback when SSE fails)
+    async function fetchRecentEvents() {
+        try {
+            const data = await fetchApi(buildRecentEventsEndpoint());
+            if (data.success && data.events) {
+                data.events.forEach(eventData => {
+                    const { event: topLevelEventType, data: ssePayload, timestamp } = eventData;
+
+                    addMessageToGlobalNotificationBubbleLog(eventData); 
+
+                    if (currentSelectedAgentForDialogueView !== "all" && 
+                        ssePayload.agent_name === currentSelectedAgentForDialogueView &&
+                        !isLoadingHistoryForAgent) { 
+                        
+                        if (topLevelEventType === 'human_assist_event') {
+                            if (ssePayload.type === 'manual_message_human_part_sent') {
+                                const humanMessageEvent = {
+                                    event: 'manual_message_to_agent_llm', // Effective type for addMessageToAgentBubbleLog
+                                    data: {
+                                        agent_name: ssePayload.agent_name,
+                                        tick: ssePayload.tick || timestamp,
+                                        speaker: 'HumanAssistant', 
+                                        text_content: ssePayload.text_content, // This is the human_message
+                                        // No thinking_text or token_info for the human's sent message
+                                    },
+                                    timestamp: timestamp
+                                };
+                                addMessageToAgentBubbleLog(humanMessageEvent, false);
+                            } else if (ssePayload.type === 'manual_llm_response_received') {
+                                const agentResponseEvent = {
+                                    event: 'manual_llm_response_to_human', // Effective type
+                                    data: {
+                                        agent_name: ssePayload.agent_name,
+                                        tick: ssePayload.tick || timestamp, 
+                                        speaker: `${ssePayload.agent_name} (LLM)`, 
+                                        text_content: ssePayload.text_content, // LLM's response
+                                        thinking_text: ssePayload.thinking_text, // LLM's thinking
+                                        token_info: ssePayload.token_info
+                                    },
+                                    timestamp: timestamp
+                                };
+                                addMessageToAgentBubbleLog(agentResponseEvent, false);
+                            }
+                            // Other human_assist_event types might be notifications, handled by global log
+                        } else if (topLevelEventType === 'final_chat_event') {
+                            if (ssePayload.type === 'human_message_sent') {
+                                const humanFinalMessageEvent = {
+                                    event: 'final_message_to_agent', // Effective type
+                                    data: {
+                                        agent_name: ssePayload.agent_name,
+                                        tick: ssePayload.tick || timestamp,
+                                        speaker: 'HumanFinalChat',
+                                        text_content: ssePayload.human_message // Content from payload
+                                    },
+                                    timestamp: timestamp
+                                };
+                                addMessageToAgentBubbleLog(humanFinalMessageEvent, false);
+                            } else if (ssePayload.type === 'agent_response_received') {
+                                const agentFinalResponseEvent = {
+                                    event: 'final_agent_response_to_human', // Effective type
+                                    data: {
+                                        agent_name: ssePayload.agent_name,
+                                        tick: ssePayload.tick || timestamp,
+                                        speaker: `${ssePayload.agent_name} (FinalResponse)`,
+                                        text_content: ssePayload.llm_response, // Content from payload
+                                        thinking_text: ssePayload.thinking_text, // Thinking from payload
+                                        token_info: ssePayload.token_info
+                                    },
+                                    timestamp: timestamp
+                                };
+                                addMessageToAgentBubbleLog(agentFinalResponseEvent, false);
+                            }
+                            // Errors in final_chat_event are handled by global log or if status indicates error
+                        } else {
+                            addMessageToAgentBubbleLog(eventData, false);
+                        }
+                    }
+                });
+            }
+        } catch (error) {
+            console.error("Error fetching recent events:", error);
+        }
+    }
+
+    function selectedAgentStreamParam() {
+        return encodeURIComponent(currentSelectedAgentForDialogueView || 'all');
+    }
+
+    function buildLiveLogStreamEndpoint() {
+        return `/api/orchestrator/live_log_stream?agent_name=${selectedAgentStreamParam()}`;
+    }
+
+    function buildRecentEventsEndpoint() {
+        return `/api/orchestrator/recent_events?agent_name=${selectedAgentStreamParam()}`;
+    }
+
+    function stopPollingFallback() {
+        if (pollingFallbackInterval) {
+            clearInterval(pollingFallbackInterval);
+            pollingFallbackInterval = null;
+        }
+    }
+
+    function startPollingFallback() {
+        if (pollingFallbackInterval) {
+            return;
+        }
+        getOrchestratorStatus();
+        fetchRecentEvents();
+        pollingFallbackInterval = setInterval(() => {
+            getOrchestratorStatus();
+            fetchRecentEvents();
+        }, 3000);
+    }
+    
+    function connectSseLogStream() {
+        if (sseSource) { sseSource.close(); }
+        stopPollingFallback();
+
+        const sseEndpoint = buildLiveLogStreamEndpoint();
+        
+        try {
+            sseSource = new EventSource(sseEndpoint);
+        } catch (error) {
+            console.error("Failed to create EventSource:", error);
+            addMessageToGlobalNotificationBubbleLog({
+                event: "stream_status",
+                data: { message: "Failed to create SSE connection" },
+                timestamp: Date.now() / 1000
+            });
+            startPollingFallback();
+            return;
+        }
+        const activeSource = sseSource;
+        
+        // Set a timeout for SSE connection
+        const connectionTimeout = setTimeout(() => {
+            if (sseSource !== activeSource) {
+                return;
+            }
+            if (sseSource) {
+                sseSource.close();
+                sseSource = null;
+            }
+            addMessageToGlobalNotificationBubbleLog({
+                event: "stream_status",
+                data: { message: "SSE connection timeout, switching to polling mode" },
+                timestamp: Date.now() / 1000
+            });
+            startPollingFallback();
+        }, 5000); // 5 second timeout
+
+        sseSource.onopen = function(event) {
+            if (sseSource !== activeSource) {
+                return;
+            }
+            clearTimeout(connectionTimeout); // Cancel timeout if connection succeeds
+            stopPollingFallback();
+            addMessageToGlobalNotificationBubbleLog({
+                event: "stream_status", 
+                data: {message: "SSE live log stream connected."}, 
+                timestamp: Date.now()/1000
+            });
+        };
+
+        sseSource.onmessage = function(event) {
+            if (sseSource !== activeSource) {
+                return;
+            }
+            try {
+                const eventData = JSON.parse(event.data); 
+                const { event: topLevelEventType, data: ssePayload, timestamp } = eventData; 
+
+                // Always log to global notifications
+                addMessageToGlobalNotificationBubbleLog(eventData); 
+
+                // Conditional logging to agent-specific bubble log
+                if (currentSelectedAgentForDialogueView !== "all" && 
+                    ssePayload.agent_name === currentSelectedAgentForDialogueView &&
+                    !isLoadingHistoryForAgent) { 
+                    
+                    if (topLevelEventType === 'human_assist_event') {
+                        if (ssePayload.type === 'manual_message_human_part_sent') {
+                            const humanMessageEvent = {
+                                event: 'manual_message_to_agent_llm', // Effective type for addMessageToAgentBubbleLog
+                                data: {
+                                    agent_name: ssePayload.agent_name,
+                                    tick: ssePayload.tick || timestamp,
+                                    speaker: 'HumanAssistant', 
+                                    text_content: ssePayload.text_content, // This is the human_message
+                                    // No thinking_text or token_info for the human's sent message
+                                },
+                                timestamp: timestamp
+                            };
+                            addMessageToAgentBubbleLog(humanMessageEvent, false);
+                        } else if (ssePayload.type === 'manual_llm_response_received') {
+                            const agentResponseEvent = {
+                                event: 'manual_llm_response_to_human', // Effective type
+                                data: {
+                                    agent_name: ssePayload.agent_name,
+                                    tick: ssePayload.tick || timestamp, 
+                                    speaker: `${ssePayload.agent_name} (LLM)`, 
+                                    text_content: ssePayload.text_content, // LLM's response
+                                    thinking_text: ssePayload.thinking_text, // LLM's thinking
+                                    token_info: ssePayload.token_info
+                                },
+                                timestamp: timestamp
+                            };
+                            addMessageToAgentBubbleLog(agentResponseEvent, false);
+                        }
+                        // Other human_assist_event types might be notifications, handled by global log
+                    } else if (topLevelEventType === 'final_chat_event') {
+                        if (ssePayload.type === 'human_message_sent') {
+                            const humanFinalMessageEvent = {
+                                event: 'final_message_to_agent', // Effective type
+                                data: {
+                                    agent_name: ssePayload.agent_name,
+                                    tick: ssePayload.tick || timestamp,
+                                    speaker: 'HumanFinalChat',
+                                    text_content: ssePayload.human_message // Content from payload
+                                },
+                                timestamp: timestamp
+                            };
+                            addMessageToAgentBubbleLog(humanFinalMessageEvent, false);
+                        } else if (ssePayload.type === 'agent_response_received') {
+                            const agentFinalResponseEvent = {
+                                event: 'final_agent_response_to_human', // Effective type
+                                data: {
+                                    agent_name: ssePayload.agent_name,
+                                    tick: ssePayload.tick || timestamp,
+                                    speaker: `${ssePayload.agent_name} (FinalResponse)`,
+                                    text_content: ssePayload.llm_response, // Content from payload
+                                    thinking_text: ssePayload.thinking_text, // Thinking from payload
+                                    token_info: ssePayload.token_info
+                                },
+                                timestamp: timestamp
+                            };
+                            addMessageToAgentBubbleLog(agentFinalResponseEvent, false);
+                        }
+                        // Errors in final_chat_event are handled by global log or if status indicates error
+                    } else {
+                        // For other existing events like 'llm_event', 'observation', etc.
+                        addMessageToAgentBubbleLog(eventData, false);
+                    }
+                }
+
+                // UI updates for orchestrator status, agent list, etc. (as before)
+                if (['orchestrator_status', 'orchestrator_control', 'tick_event', 'agent_management', 'human_assist_event', 'connector_status', 'connector_error', 'final_chat_event'].includes(topLevelEventType)) {
+                    getOrchestratorStatus(); 
+                    updateStationStatistics(); // Update statistics alongside orchestrator status
+                    if (topLevelEventType === 'agent_management' || 
+                        (topLevelEventType === 'tick_event' && ssePayload.type === 'end') || 
+                        topLevelEventType === 'connector_status' ||
+                        (topLevelEventType === 'orchestrator_status' && (ssePayload.status === 'paused_agent_departure' || ssePayload.status === 'stopped'))) {
+                        fetchAgentsForDashboard(); 
+                    }
+                }
+                if (topLevelEventType === 'tick_event' && ssePayload.type === 'end' && ssePayload.next_tick !== undefined){
+                    if (stationTickDashboard) stationTickDashboard.textContent = ssePayload.next_tick;
+                }
+            } catch (e) {
+                console.error("Error parsing SSE data: ", e, "Raw data: ", event.data);
+                const errorLogEntry = {event: "error", data: {message: "Malformed SSE event: " + event.data}, timestamp: Date.now()/1000 };
+                addMessageToGlobalNotificationBubbleLog(errorLogEntry);
+            }
+        }; // End of sseSource.onmessage
+
+        sseSource.onerror = function(error) {
+            if (sseSource !== activeSource) {
+                return;
+            }
+            clearTimeout(connectionTimeout);
+            console.error("SSE connection error:", error);
+            const errorMessage = "Live log stream connection error. Falling back to polling mode.";
+
+            const errorData = {event: "error", data: {message: errorMessage}, timestamp: Date.now()/1000};
+            addMessageToGlobalNotificationBubbleLog(errorData);
+            if (currentSelectedAgentForDialogueView !== "all") {
+                addMessageToAgentBubbleLog(errorData, false);
+            }
+
+            const statusMessage = 'Log stream disconnected. Switched to polling mode.';
+            showDashboardStatus(statusMessage, 'info');
+            
+            if(sseSource) { sseSource.close(); sseSource = null; }
+            
+            // Fallback to polling for ANY SSE error.
+            startPollingFallback();
+        };
+    }
+
+
+    // --- Event Listeners Setup ---
+
+    if (dashboardStatusMessages) {
+        dashboardStatusMessages.addEventListener('click', hideDashboardStatus);
+        dashboardStatusMessages.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' || event.key === 'Escape' || event.key === ' ') {
+                event.preventDefault();
+                hideDashboardStatus();
+            }
+        });
+    }
+
+    [logModeFullButton, logModeCollapsedButton].filter(Boolean).forEach(button => {
+        button.addEventListener('click', () => setLogDisplayMode(button.dataset.logMode));
+    });
+
+    [globalNotificationBubbleLog, agentSpecificBubbleLog].filter(Boolean).forEach(container => {
+        container.addEventListener('click', (event) => {
+            const toggle = event.target.closest('.log-message-toggle');
+            if (!toggle) return;
+            event.preventDefault();
+            event.stopPropagation();
+            const bubble = toggle.closest('.log-message-collapsible');
+            if (!bubble) return;
+            setLogMessageExpanded(bubble, !bubble.classList.contains('log-message-expanded'));
+        });
+    });
+
+    if (toggleAgentLogButton) {
+        toggleAgentLogButton.addEventListener('click', () => {
+            setCurrentLogSourceCollapsed('agent', !isCurrentLogSourceCollapsed('agent'));
+        });
+    }
+
+    if (toggleStationLogButton) {
+        toggleStationLogButton.addEventListener('click', () => {
+            setCurrentLogSourceCollapsed('station', !isCurrentLogSourceCollapsed('station'));
+        });
+    }
+    
+    if (startLoopButton) startLoopButton.addEventListener('click', async () => { 
+        showDashboardStatus('Launching station...', 'info');
+        try { const data = await fetchApi('/api/orchestrator/start_loop', 'POST'); 
+            showDashboardStatus(data.message, data.success ? 'success' : 'error'); 
+            getOrchestratorStatus(); 
+        } catch (error) {}
+    });
+    if (pauseOrchestratorButton) pauseOrchestratorButton.addEventListener('click', async () => {
+        const isCancelAction = pauseOrchestratorButton.textContent === 'Cancel Pause';
+        if (isCancelAction) {
+            showDashboardStatus('Cancelling pause request...', 'info');
+            try {
+                const data = await fetchApi('/api/orchestrator/cancel_pause', 'POST');
+                showDashboardStatus(data.message, data.success ? 'success' : 'info');
+            } catch (error) {}
+        } else {
+            showDashboardStatus('Requesting orchestrator pause...', 'info');
+            try { 
+                const data = await fetchApi('/api/orchestrator/pause', 'POST'); 
+                showDashboardStatus(data.message, data.success ? 'success' : 'info'); 
+            } catch (error) {}
+        }
+    });
+    if (resumeOrchestratorButton) resumeOrchestratorButton.addEventListener('click', async () => { 
+        showDashboardStatus('Resuming orchestrator...', 'info');
+        try { const data = await fetchApi('/api/orchestrator/resume', 'POST'); showDashboardStatus(data.message, data.success ? 'success' : 'error'); getOrchestratorStatus(); } catch (error) {}
+    });
+    if (stopOrchestratorButton) stopOrchestratorButton.addEventListener('click', async () => { 
+        if (!confirm("Are you sure you want to stop the orchestrator?")) return;
+        showDashboardStatus('Stopping orchestrator...', 'info');
+        try { const data = await fetchApi('/api/orchestrator/stop', 'POST'); showDashboardStatus(data.message, data.success ? 'success' : 'error'); getOrchestratorStatus(); } catch (error) {}
+    });
+
+    if (agentSelectorDashboard) agentSelectorDashboard.addEventListener('change', () => {
+        handleAgentDialogueViewChange();
+        connectSseLogStream();
+    });
+    if (agentSelectorDashboard) agentSelectorDashboard.addEventListener('change', updateCopySystemPromptButtonState);
+
+    if (copySystemPromptButton) {
+        copySystemPromptButton.addEventListener('click', async () => {
+            const selectedAgent = agentSelectorDashboard ? agentSelectorDashboard.value : null;
+            if (!selectedAgent || selectedAgent === 'all') {
+                showDashboardStatus('Select a specific agent to copy its system prompt.', 'error');
+                updateCopySystemPromptButtonState();
+                return;
+            }
+
+            try {
+                const result = await fetchApi(`/api/agent/${encodeURIComponent(selectedAgent)}/system_prompt`, 'GET');
+                const systemPrompt = String(result.system_prompt || '');
+                if (!systemPrompt.trim()) {
+                    showDashboardStatus(`No system prompt available for ${selectedAgent}.`, 'info');
+                    return;
+                }
+                const promptLabel = selectedAgent === 'Reviewer' ? 'Reviewer Prompt' : `System Prompt for ${selectedAgent}`;
+                const labeledSystemPrompt = `${promptLabel}:\n\n${systemPrompt}`;
+                await copyTextToClipboard(labeledSystemPrompt, `${promptLabel} copied.`);
+            } catch (error) {
+                // fetchApi already surfaced the error
+            }
+        });
+    }
+    
+    if (clearLogButton) clearLogButton.addEventListener('click', () => {
+        if (currentSelectedAgentForDialogueView === "all") {
+            if(globalNotificationBubbleLog) globalNotificationBubbleLog.innerHTML = `<div class="chat-bubble chat-bubble-system initial-log-message">Global notifications cleared by user. New messages will appear here.</div>`;
+        } else {
+            if(agentSpecificBubbleLog) agentSpecificBubbleLog.innerHTML = `<div class="chat-bubble chat-bubble-system initial-log-message">Log for ${currentSelectedAgentForDialogueView} cleared by user.</div>`;
+            if (fullDialogueHistoryCache[currentSelectedAgentForDialogueView]) {
+                fullDialogueHistoryCache[currentSelectedAgentForDialogueView] = [];
+            }
+        }
+    });
+    
+    if (loadFullHistoryButton) loadFullHistoryButton.addEventListener('click', () => {
+        if (currentSelectedAgentForDialogueView && currentSelectedAgentForDialogueView !== "all") {
+            loadFullHistoryInBackground();
+        }
+    });
+
+    if (historyWindowSelector) {
+        historyWindowSelector.value = historyWindowMode;
+        historyWindowSelector.addEventListener('change', () => {
+            const nextMode = historyWindowSelector.value;
+            if (!['recent', 'earliest'].includes(nextMode)) return;
+            historyWindowMode = nextMode;
+            localStorage.setItem(HISTORY_WINDOW_STORAGE_KEY, historyWindowMode);
+            if (currentSelectedAgentForDialogueView && currentSelectedAgentForDialogueView !== "all") {
+                handleAgentDialogueViewChange(false);
+            }
+        });
+    }
+    
+    if (createApiAgentModalButton) createApiAgentModalButton.addEventListener('click', () => {
+        const restoreDraft = consumeBackdropDraftFlag(createApiAgentModal);
+        if(createApiAgentModal) createApiAgentModal.style.display = "block";
+        const modelNameInput = document.getElementById('api-model-name');
+        if(modelNameInput) modelNameInput.focus();
+
+        // Populate presets
+        if (!restoreDraft && apiModelPreset && typeof MODEL_PRESETS !== 'undefined') {
+            apiModelPreset.innerHTML = '<option value="">-- Select a Preset --</option>';
+            MODEL_PRESETS.forEach((preset, index) => {
+                const option = document.createElement('option');
+                option.value = index;
+                option.textContent = preset.display_name;
+                apiModelPreset.appendChild(option);
+            });
+        }
+
+        // Update OpenAI params visibility when modal opens
+        if (updateOpenAIParamsVisibility) {
+            updateOpenAIParamsVisibility();
+        }
+    });
+    
+    if (apiModelPreset) {
+        apiModelPreset.addEventListener('change', (e) => {
+            const selectedIndex = e.target.value;
+            if (selectedIndex && typeof MODEL_PRESETS !== 'undefined' && MODEL_PRESETS[selectedIndex]) {
+                const preset = MODEL_PRESETS[selectedIndex];
+                const form = createApiAgentForm;
+                if(form) {
+                    form.querySelector('[name="model_provider_class"]').value = preset.model_provider_class || '';
+                    form.querySelector('[name="model_name"]').value = preset.model_name || '';
+                    form.querySelector('[name="initial_tokens_max"]').value = preset.initial_tokens_max || '';
+                    form.querySelector('[name="llm_system_prompt"]').value =
+                        preset.role_definition || preset.llm_system_prompt || '';
+
+                    // Update OpenAI params visibility after preset changes provider
+                    if (updateOpenAIParamsVisibility) {
+                        updateOpenAIParamsVisibility();
+                    }
+                }
+            }
+        });
+    }
+    
+    if (closeApiModalButton) closeApiModalButton.addEventListener('click', () => { hideModalWithoutReset(createApiAgentModal, true); });
+    if (apiAgentTypeSelect) apiAgentTypeSelect.addEventListener('change', (e) => {
+        if(apiRecursiveFieldsDiv) apiRecursiveFieldsDiv.classList.toggle('hidden', e.target.value !== "Recursive Agent");
+    });
+
+    // Show/hide OpenAI-specific parameters based on selected provider
+    const apiModelProviderSelect = document.getElementById('api-model-provider-class');
+    const openaiSpecificParams = document.getElementById('openai-specific-params');
+    let updateOpenAIParamsVisibility = null; // Declare in outer scope
+
+    if (apiModelProviderSelect && openaiSpecificParams) {
+        // Function to update visibility
+        updateOpenAIParamsVisibility = () => {
+            const isOpenAI = apiModelProviderSelect.value === 'OpenAI';
+            openaiSpecificParams.classList.toggle('hidden', !isOpenAI);
+        };
+
+        // Trigger on change
+        apiModelProviderSelect.addEventListener('change', updateOpenAIParamsVisibility);
+
+        // Also trigger on initial load
+        updateOpenAIParamsVisibility();
+    }
+    if (createApiAgentForm) createApiAgentForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const formData = new FormData(createApiAgentForm);
+        const data = Object.fromEntries(formData.entries());
+        const agentCountRaw = data.agent_count;
+        let agentCount = parseInt(agentCountRaw, 10);
+        if (!Number.isInteger(agentCount) || agentCount < 1) {
+            agentCount = 1;
+        }
+        delete data.agent_count;
+        if (data.generation) data.generation = parseInt(data.generation, 10); else delete data.generation;
+        if (data.llm_temperature) data.llm_temperature = parseFloat(data.llm_temperature); else delete data.llm_temperature;
+        if (data.llm_max_tokens) data.llm_max_tokens = parseInt(data.llm_max_tokens, 10); else delete data.llm_max_tokens;
+        if (!data.agent_name) delete data.agent_name;
+        if (!data.llm_system_prompt) delete data.llm_system_prompt;
+        if (!data.initial_tokens_max) delete data.initial_tokens_max; else data.initial_tokens_max = parseInt(data.initial_tokens_max);
+        if (!data.internal_note) delete data.internal_note;
+        if (!data.assigned_ancestor) delete data.assigned_ancestor;
+
+        // Build custom_api_params for provider-specific settings
+        const customApiParams = {};
+        if (data.model_provider_class === 'OpenAI') {
+            const verbosity = document.getElementById('api-openai-verbosity')?.value;
+            if (verbosity) {
+                customApiParams.verbosity = verbosity;
+            }
+        }
+        if (Object.keys(customApiParams).length > 0) {
+            data.llm_custom_api_params = customApiParams;
+        }
+
+        if (data.agent_type !== "Recursive Agent") { delete data.lineage; delete data.generation; }
+        else {
+            if (!data.agent_name && (!data.lineage || (data.generation === null || data.generation === undefined || isNaN(data.generation)))) {
+                showDashboardStatus("For Recursive type with auto-name, Lineage and Generation are required.", "error"); return;
+            }
+            if (agentCount > 1 && !data.agent_name) {
+                showDashboardStatus("For multiple recursive agents, please provide an Agent Name base.", "error"); return;
+            }
+        }
+
+        const agentLabel = agentCount === 1 ? "agent" : "agents";
+        showDashboardStatus(`Creating ${agentCount} ${agentLabel}...`, 'info');
+        try {
+            let successCount = 0;
+            let failureCount = 0;
+            let lastError = null;
+            for (let i = 0; i < agentCount; i += 1) {
+                const payload = { ...data };
+                if (agentCount > 1 && data.agent_name) {
+                    payload.agent_name = `${data.agent_name}-${i + 1}`;
+                }
+                const result = await fetchApi('/api/orchestrator/add_agent', 'POST', payload);
+                if (result.success) {
+                    successCount += 1;
+                } else {
+                    failureCount += 1;
+                    lastError = result.message;
+                }
+            }
+
+            const summaryParts = [`${successCount} ${successCount === 1 ? 'agent' : 'agents'} created`];
+            if (failureCount > 0) summaryParts.push(`${failureCount} failed`);
+            let summaryMessage = `${summaryParts.join(', ')}.`;
+            if (lastError && failureCount > 0) {
+                summaryMessage += ` Last error: ${lastError}`;
+            }
+            showDashboardStatus(summaryMessage, failureCount > 0 ? 'error' : 'success');
+
+            if (successCount > 0) {
+                if (failureCount === 0) {
+                    if (createApiAgentModal) createApiAgentModal.style.display = "none";
+                    createApiAgentForm.reset();
+                    if (apiRecursiveFieldsDiv) apiRecursiveFieldsDiv.classList.add('hidden');
+                }
+                await fetchAgentsForDashboard();
+                await getOrchestratorStatus();
+            }
+        } catch (error) { /* Handled by fetchApi */ }
+    });
+
+    function hideModalWithoutReset(modal, preserveDraft = false) {
+        if (!modal) return;
+        if (preserveDraft) modal.dataset.reopenWithDraft = 'true';
+        modal.style.display = "none";
+    }
+
+    function consumeBackdropDraftFlag(modal) {
+        if (!modal || modal.dataset.reopenWithDraft !== 'true') return false;
+        delete modal.dataset.reopenWithDraft;
+        return true;
+    }
+
+    document.querySelectorAll('.modal').forEach((modal) => {
+        modal.addEventListener('click', (event) => {
+            if (event.target === modal) {
+                hideModalWithoutReset(modal, true);
+            }
+        });
+    });
+
+    if(endApiAgentSessionButton) endApiAgentSessionButton.addEventListener('click', async () => {
+        const agentToEnd = agentSelectorDashboard ? agentSelectorDashboard.value : null;
+        if (!agentToEnd || agentToEnd === "all") { showDashboardStatus("Please select an agent to end their session.", "error"); return; }
+        
+        if (!confirm(`Are you sure you want to request to end the session for agent '${agentToEnd}'? The session will terminate at the start of their next turn.`)) return;
+        
+        showDashboardStatus(`Requesting to end session for ${agentToEnd}...`, 'info');
+        endApiAgentSessionButton.disabled = true; // Disable button immediately
+        try {
+            const result = await fetchApi('/api/orchestrator/end_agent', 'POST', { agent_name: agentToEnd });
+            showDashboardStatus(result.message, result.success ? 'success' : 'error');
+            if (result.success) {
+                endApiAgentSessionButton.textContent = "End Requested"; // Provide visual feedback
+            } else {
+                endApiAgentSessionButton.disabled = false; // Re-enable on failure
+            }
+        } catch (error) {
+            endApiAgentSessionButton.disabled = false; // Re-enable on failure
+        }
+    });
+
+    if (openSendSystemMessageModalButton) {
+        openSendSystemMessageModalButton.addEventListener('click', () => {
+            const restoreDraft = consumeBackdropDraftFlag(sendSystemMessageModal);
+            const previousSelectedAgents = systemMessageAgentSelector
+                ? Array.from(systemMessageAgentSelector.selectedOptions).map(option => option.value)
+                : [];
+            // Check if orchestrator is at least prepared, or if active agents can be fetched otherwise
+            // For now, relies on orchestratorState.turn_order which is populated by getOrchestratorStatus
+            if (!orchestratorState.is_prepared && !orchestratorState.is_running && orchestratorState.turn_order.length === 0) {
+                 showDashboardStatus("Orchestrator should be at least prepared, or have active agents, to populate target list.", "info");
+                 // Consider allowing opening even if orchestratorState is not fully ready,
+                 // if there's another way to get 'active' agents or if user can manually input.
+                 // For now, we rely on orchestratorState.turn_order.
+            }
+            if (systemMessageAgentSelector) {
+                systemMessageAgentSelector.innerHTML = ''; // Clear previous options
+                const activeAgents = orchestratorState.turn_order || []; // Get from cached orchestrator status
+
+                if (activeAgents.length === 0) {
+                    const option = document.createElement('option');
+                    option.textContent = "No active agents in turn order.";
+                    option.disabled = true;
+                    systemMessageAgentSelector.appendChild(option);
+                    if (confirmSendSystemMessageButton) confirmSendSystemMessageButton.disabled = true;
+                } else {
+                    activeAgents.forEach(agentName => {
+                        const option = document.createElement('option');
+                        const agentInfo = fullAgentListCache.find(agent => agent.name === agentName);
+                        option.value = agentName;
+                        option.textContent = agentInfo ? formatAgentDisplayName(agentInfo) : agentName;
+                        if (restoreDraft && previousSelectedAgents.includes(agentName)) {
+                            option.selected = true;
+                        }
+                        systemMessageAgentSelector.appendChild(option);
+                    });
+                    if (confirmSendSystemMessageButton) confirmSendSystemMessageButton.disabled = false;
+                }
+            }
+            if (!restoreDraft && systemMessageContent) systemMessageContent.value = "";
+            if (sendSystemMessageModal) sendSystemMessageModal.style.display = "block";
+            if (systemMessageContent) systemMessageContent.focus();
+        });
+    }
+
+    if (closeSendSystemMessageModalButton) {
+        closeSendSystemMessageModalButton.addEventListener('click', () => {
+            hideModalWithoutReset(sendSystemMessageModal, true);
+        });
+    }
+
+    if (confirmSendSystemMessageButton) {
+        confirmSendSystemMessageButton.addEventListener('click', async () => {
+            const selectedAgentOptions = systemMessageAgentSelector ? Array.from(systemMessageAgentSelector.selectedOptions) : [];
+            const targetAgents = selectedAgentOptions.map(option => option.value);
+            const message = systemMessageContent ? systemMessageContent.value.trim() : "";
+
+            if (targetAgents.length === 0) {
+                showDashboardStatus("Please select at least one target agent.", "error");
+                return;
+            }
+            if (!message) {
+                showDashboardStatus("System message content cannot be empty.", "error");
+                return;
+            }
+
+            showDashboardStatus(`Sending system message to ${targetAgents.length} agent(s)...`, 'info', 0); // 0 for persistent
+            confirmSendSystemMessageButton.disabled = true;
+            try {
+                const result = await fetchApi('/api/station/send_system_message', 'POST', {
+                    target_agents: targetAgents,
+                    message_content: message
+                });
+                showDashboardStatus(result.message, result.success ? 'success' : 'error');
+                if (result.success) {
+                    if (systemMessageContent) systemMessageContent.value = "";
+                    if (sendSystemMessageModal) sendSystemMessageModal.style.display = "none";
+                }
+            } catch (error) {
+                // fetchApi already shows error via its own catch block if it throws
+                // If fetchApi doesn't throw but API returns non-ok, it's handled above
+            } finally {
+                confirmSendSystemMessageButton.disabled = false;
+            }
+        });
+    }
+
+    // --- Chat ---
+    if (openArchivePapersModalButton) {
+        openArchivePapersModalButton.addEventListener('click', () => {
+            void openArchivePapersModal();
+        });
+    }
+
+    if (closeArchivePapersModalButton) {
+        closeArchivePapersModalButton.addEventListener('click', () => {
+            hideModalWithoutReset(archivePapersModal);
+        });
+    }
+
+    if (copyAllArchiveAbstractsButton) {
+        copyAllArchiveAbstractsButton.addEventListener('click', () => {
+            if (!archiveAllAbstractsMarkdown.trim()) {
+                showDashboardStatus('No archive abstracts to copy.', 'info');
+                return;
+            }
+            void copyTextToClipboard(archiveAllAbstractsMarkdown, 'All archive abstracts copied to clipboard.');
+        });
+    }
+
+    if (backToArchivePapersListButton) {
+        backToArchivePapersListButton.addEventListener('click', () => {
+            showArchiveListView();
+        });
+    }
+
+    if (copyArchivePaperMarkdownButton) {
+        copyArchivePaperMarkdownButton.addEventListener('click', () => {
+            if (!archiveSelectedPaper || !archiveSelectedPaper.paper_markdown) {
+                showDashboardStatus('No archive paper is currently open.', 'error');
+                return;
+            }
+            void copyTextToClipboard(String(archiveSelectedPaper.paper_markdown), 'Archive paper markdown copied to clipboard.');
+        });
+    }
+
+    document.querySelectorAll('.archive-sort-button').forEach(button => {
+        button.addEventListener('click', () => {
+            const key = button.getAttribute('data-sort-key');
+            if (!key) return;
+            if (archiveSortState.key === key) {
+                archiveSortState.direction = archiveSortState.direction === 'asc' ? 'desc' : 'asc';
+            } else {
+                archiveSortState = {
+                    key,
+                    direction: key === 'title' || key === 'author' ? 'asc' : 'desc'
+                };
+            }
+            renderArchivePapersTable();
+        });
+    });
+
+    if (openTemporalChatModalButton) {
+        openTemporalChatModalButton.addEventListener('click', async () => {
+            if (!temporalChatAgentSelector) return;
+            const restoreDraft = consumeBackdropDraftFlag(temporalChatModal);
+            const previousTemporalAgent = temporalChatAgentSelector.value;
+            temporalChatAgentSelector.innerHTML = '';
+
+            const selectableAgents = (fullAgentListCache || [])
+                .filter(a => a && a.name && !String(a.status || '').startsWith("Ascended"))
+                .sort((a, b) => {
+                    const aBranched = !!a.temporal_chat_exists;
+                    const bBranched = !!b.temporal_chat_exists;
+                    if (aBranched !== bBranched) return aBranched ? -1 : 1;
+                    if (aBranched && bBranched) {
+                        const aUpdated = String(a.temporal_chat_updated_at || '');
+                        const bUpdated = String(b.temporal_chat_updated_at || '');
+                        if (aUpdated !== bUpdated) return bUpdated.localeCompare(aUpdated);
+                    }
+                    return String(a.name || '').localeCompare(String(b.name || ''));
+                });
+
+            if (selectableAgents.length === 0) {
+                const option = document.createElement('option');
+                option.value = "";
+                option.textContent = "No agents available.";
+                option.disabled = true;
+                temporalChatAgentSelector.appendChild(option);
+            } else {
+                selectableAgents.forEach(agent => {
+                    const option = document.createElement('option');
+                    option.value = agent.name;
+                    option.textContent = formatAgentDisplayName(agent, { includeBranchMarker: true });
+                    temporalChatAgentSelector.appendChild(option);
+                });
+
+                // Default selection: current dashboard selection if valid, else first.
+                const selectedAgentName = agentSelectorDashboard ? agentSelectorDashboard.value : null;
+                if (restoreDraft && previousTemporalAgent && selectableAgents.some(agent => agent.name === previousTemporalAgent)) {
+                    temporalChatAgentSelector.value = previousTemporalAgent;
+                } else if (selectedAgentName && selectedAgentName !== "all") {
+                    const selectedAgentData = fullAgentListCache.find(a => a.name === selectedAgentName);
+                    const isAscended = selectedAgentData && String(selectedAgentData.status || '').startsWith("Ascended");
+                    if (selectedAgentData && !isAscended) {
+                        temporalChatAgentSelector.value = selectedAgentName;
+                    }
+                }
+            }
+
+            if (!restoreDraft && temporalChatInput) temporalChatInput.value = "";
+            if (!restoreDraft && temporalChatBranchTickInput) temporalChatBranchTickInput.value = "";
+            if (temporalChatModal) temporalChatModal.style.display = "block";
+            _renderTemporalChatTranscript(temporalChatAgentSelector.value);
+            if (temporalChatAgentSelector.value) {
+                try {
+                    await _loadTemporalChatState(temporalChatAgentSelector.value);
+                    _renderTemporalChatTranscript(temporalChatAgentSelector.value);
+                } catch (e) {
+                    showDashboardStatus(`Failed to load chat: ${e.message || e}`, "error");
+                }
+            }
+            if (temporalChatInput) temporalChatInput.focus();
+        });
+    }
+
+    if (closeTemporalChatModalButton) {
+        closeTemporalChatModalButton.addEventListener('click', () => {
+            _closeTemporalChatModal();
+        });
+    }
+    if (temporalChatAgentSelector) {
+        temporalChatAgentSelector.addEventListener('change', async () => {
+            _renderTemporalChatTranscript(temporalChatAgentSelector.value);
+            if (!temporalChatAgentSelector.value) return;
+            try {
+                await _loadTemporalChatState(temporalChatAgentSelector.value);
+                _renderTemporalChatTranscript(temporalChatAgentSelector.value);
+            } catch (e) {
+                showDashboardStatus(`Failed to load chat: ${e.message || e}`, "error");
+            }
+        });
+    }
+
+    if (branchTemporalChatButton) {
+        branchTemporalChatButton.addEventListener('click', async () => {
+            const agentName = temporalChatAgentSelector ? temporalChatAgentSelector.value : null;
+            if (!agentName) return;
+            if (_isTemporalChatProcessing(agentName) || (_getTemporalChatQueue(agentName).length > 0)) {
+                showDashboardStatus("Please wait until all queued messages finish before branching chat.", "info");
+                return;
+            }
+            const parsedBranchTick = _parseTemporalChatBranchTickInput();
+            if (!parsedBranchTick.ok) {
+                showDashboardStatus(parsedBranchTick.error, "error");
+                return;
+            }
+            const existingMessages = _getTemporalChatMessages(agentName);
+            if (existingMessages.length > 0 && !confirm("Branch again? This will clear the current chat for this agent.")) {
+                return;
+            }
+
+            temporalChatBranchingByAgent.set(agentName, true);
+            temporalChatProcessingByAgent.set(agentName, true);
+            _updateTemporalChatSendButtonState(agentName);
+            try {
+                const payload = {};
+                if (parsedBranchTick.value !== null) payload.base_tick = parsedBranchTick.value;
+                const result = await fetchApi(`/api/agent/${encodeURIComponent(agentName)}/temporal_chat/refresh`, 'POST', payload);
+                if (!result || !result.success || !result.chat) {
+                    throw new Error((result && (result.error || result.message)) || 'Failed to branch chat.');
+                }
+                _applyTemporalChatState(agentName, result.chat);
+                temporalChatQueueByAgent.set(agentName, []);
+                _renderTemporalChatTranscript(agentName);
+                if (temporalChatInput) temporalChatInput.value = "";
+                const baseTick = result.chat && typeof result.chat.base_tick !== 'undefined' ? result.chat.base_tick : 'current';
+                showDashboardStatus(`Chat branched from tick ${baseTick}.`, "success");
+            } catch (e) {
+                showDashboardStatus(`Failed to branch chat: ${e.message || e}`, "error");
+            } finally {
+                temporalChatBranchingByAgent.set(agentName, false);
+                temporalChatProcessingByAgent.set(agentName, false);
+                _updateTemporalChatSendButtonState(agentName);
+            }
+        });
+    }
+
+    if (copyTemporalChatButton) {
+        copyTemporalChatButton.addEventListener('click', async () => {
+            const agentName = temporalChatAgentSelector ? temporalChatAgentSelector.value : null;
+            if (!agentName) {
+                showDashboardStatus("Please select a target agent to copy the dialogue.", "error");
+                return;
+            }
+            const text = _formatTemporalChatForCopy(agentName, true);
+            if (!text.trim()) {
+                showDashboardStatus("No dialogue to copy.", "info");
+                return;
+            }
+            try {
+                await navigator.clipboard.writeText(text);
+                showDashboardStatus("Chat copied to clipboard.", "success");
+            } catch (e) {
+                showDashboardStatus("Failed to copy to clipboard.", "error");
+            }
+        });
+    }
+
+    if (copyTemporalChatWithoutThinkingButton) {
+        copyTemporalChatWithoutThinkingButton.addEventListener('click', async () => {
+            const agentName = temporalChatAgentSelector ? temporalChatAgentSelector.value : null;
+            if (!agentName) {
+                showDashboardStatus("Please select a target agent to copy the dialogue.", "error");
+                return;
+            }
+            const text = _formatTemporalChatForCopy(agentName, false);
+            if (!text.trim()) {
+                showDashboardStatus("No dialogue to copy.", "info");
+                return;
+            }
+            try {
+                await navigator.clipboard.writeText(text);
+                showDashboardStatus("Chat copied without thinking.", "success");
+            } catch (e) {
+                showDashboardStatus("Failed to copy to clipboard.", "error");
+            }
+        });
+    }
+
+    if (confirmTemporalChatSendButton) {
+        confirmTemporalChatSendButton.addEventListener('click', async () => {
+            if (!temporalChatAgentSelector) return;
+            const agentName = temporalChatAgentSelector.value;
+            const msg = temporalChatInput ? temporalChatInput.value.trim() : "";
+
+            if (!agentName) {
+                showDashboardStatus("Please select a target agent.", "error");
+                return;
+            }
+            if (!msg) {
+                showDashboardStatus("Message cannot be empty.", "error");
+                return;
+            }
+
+            const q = _getTemporalChatQueue(agentName);
+
+            // Queue immediately; append user message only when it is actually sent, for Q1 A1 Q2 A2 ordering.
+            q.push(msg);
+            if (temporalChatInput) temporalChatInput.value = "";
+            _updateTemporalChatSendButtonState(agentName);
+
+            // If already processing, we're done (message is queued).
+            if (_isTemporalChatProcessing(agentName)) return;
+
+            temporalChatProcessingByAgent.set(agentName, true);
+            _updateTemporalChatSendButtonState(agentName);
+            try {
+                while (q.length > 0) {
+                    const nextMsg = q.shift();
+                    if (!nextMsg) continue;
+
+                    _getTemporalChatMessages(agentName).push({ role: 'user', content: nextMsg });
+                    _renderTemporalChatTranscript(agentName);
+
+                    const result = await fetchApi(`/api/agent/${encodeURIComponent(agentName)}/temporal_chat`, 'POST', {
+                        user_message: nextMsg
+                    });
+
+                    if (result && result.success) {
+                        if (result.chat) {
+                            _applyTemporalChatState(agentName, result.chat);
+                        } else {
+                            _getTemporalChatMessages(agentName).push({ role: 'assistant', content: String(result.agent_response || "") });
+                        }
+                    } else {
+                        if (result && result.chat) _applyTemporalChatState(agentName, result.chat);
+                        _getTemporalChatMessages(agentName).push({ role: 'assistant', content: String((result && (result.error || result.message)) || "Chat failed.") });
+                        q.length = 0;
+                    }
+                    _renderTemporalChatTranscript(agentName);
+                }
+            } catch (error) {
+                _getTemporalChatMessages(agentName).push({ role: 'assistant', content: `Error: ${error.message || 'Chat request failed.'}` });
+                _renderTemporalChatTranscript(agentName);
+                q.length = 0;
+            } finally {
+                temporalChatProcessingByAgent.set(agentName, false);
+                _updateTemporalChatSendButtonState(agentName);
+                updateOrchestratorControlButtons(orchestratorState);
+            }
+        });
+    }
+
+    if (openSpeakCommonRoomModalButton) {
+        openSpeakCommonRoomModalButton.addEventListener('click', () => {
+            const restoreDraft = consumeBackdropDraftFlag(speakCommonRoomModal);
+            // This tool can be used regardless of orchestrator state, as it's a direct room interaction.
+            // However, ensure station_instance is available on backend.
+            if (!restoreDraft && commonRoomSpeakerName) commonRoomSpeakerName.value = "";
+            if (!restoreDraft && commonRoomMessageContent) commonRoomMessageContent.value = "";
+            if (speakCommonRoomModal) speakCommonRoomModal.style.display = "block";
+            if (commonRoomSpeakerName) commonRoomSpeakerName.focus();
+        });
+    }
+    if (closeSpeakCommonRoomModalButton) {
+        closeSpeakCommonRoomModalButton.addEventListener('click', () => {
+            hideModalWithoutReset(speakCommonRoomModal, true);
+        });
+    }
+
+    if (confirmSpeakCommonRoomButton) {
+        confirmSpeakCommonRoomButton.addEventListener('click', async () => {
+            const speakerName = commonRoomSpeakerName ? commonRoomSpeakerName.value.trim() : "";
+            const message = commonRoomMessageContent ? commonRoomMessageContent.value.trim() : "";
+
+            if (!speakerName) {
+                showDashboardStatus("Speaker Name cannot be empty.", "error");
+                return;
+            }
+            if (!message) {
+                showDashboardStatus("Message Content cannot be empty.", "error");
+                return;
+            }
+
+            showDashboardStatus(`Submitting message from '${speakerName}' to Common Room...`, 'info', 0); // Persistent
+            confirmSpeakCommonRoomButton.disabled = true;
+            try {
+                const result = await fetchApi('/api/room/common/speak', 'POST', {
+                    speaker_name: speakerName,
+                    message_content: message
+                });
+                showDashboardStatus(result.message, result.success ? 'success' : 'error');
+                if (result.success) {
+                    if (commonRoomSpeakerName) commonRoomSpeakerName.value = "";
+                    if (commonRoomMessageContent) commonRoomMessageContent.value = "";
+                    if (speakCommonRoomModal) speakCommonRoomModal.style.display = "none";
+                }
+            } catch (error) {
+                // fetchApi already shows error
+            } finally {
+                confirmSpeakCommonRoomButton.disabled = false;
+            }
+        });
+    }    
+
+    if (openDirectMessageModalButton) {
+        openDirectMessageModalButton.addEventListener('click', () => {
+            const restoreDraft = consumeBackdropDraftFlag(directMessageModal);
+            const previousAgentName = directMessageModalAgentName ? directMessageModalAgentName.textContent : null;
+            const selectedAgent = agentSelectorDashboard.value;
+            const isReviewer = selectedAgent === "Reviewer";
+            if (!selectedAgent || selectedAgent === "all") {
+                showDashboardStatus("Please select a specific agent to intervene with.", "error"); return;
+            }
+            
+            
+            const agentData = isReviewer ? null : fullAgentListCache.find(a => a.name === selectedAgent);
+            if (!isReviewer && !agentData) {
+                showDashboardStatus("Selected agent not found.", "error"); return;
+            }
+            
+            const isEnded = agentData ? agentData.status.startsWith("Session Ended") : false;
+            const isAscended = agentData ? agentData.status.startsWith("Ascended") : false;
+            
+            if (isAscended) {
+                showDashboardStatus("Cannot intervene with ascended agents.", "error"); return;
+            }
+            
+            // Set modal content based on agent status
+            if (directMessageModalAgentName) directMessageModalAgentName.textContent = selectedAgent;
+            if (!restoreDraft || previousAgentName !== selectedAgent) {
+                if (directMessageInput) directMessageInput.value = "";
+                if (directMessageResponseArea) directMessageResponseArea.classList.add('hidden');
+                if (directMessageLlmResponseContent) directMessageLlmResponseContent.innerHTML = "";
+            }
+            
+            if (isReviewer) {
+                if (directMessageModalTitle) directMessageModalTitle.textContent = "Intervene With Reviewer";
+                if (directMessageModalDescription) directMessageModalDescription.textContent = "Your intervention below will be sent to the Reviewer system. Responses will appear in the Reviewer log.";
+            } else if (isEnded) {
+                if (directMessageModalTitle) directMessageModalTitle.textContent = "Intervene With Ended Agent";
+                if (directMessageModalDescription) directMessageModalDescription.textContent = "This agent's session has ended, so this will not disrupt station workflow. Your message will be logged.";
+            } else {
+                if (directMessageModalTitle) directMessageModalTitle.textContent = "Intervene With Agent";
+                if (directMessageModalDescription) directMessageModalDescription.textContent = "Your message below will be sent directly to the agent. This is highly discouraged because it can disrupt the agent's normal station workflow. Ended agents are usually fine.";
+            }
+            
+            if (directMessageModal) directMessageModal.style.display = "block";
+            if (directMessageInput) directMessageInput.focus();
+        });
+    }
+    if (closeDirectMessageModalButton) closeDirectMessageModalButton.addEventListener('click', () => { hideModalWithoutReset(directMessageModal, true); });
+
+    if (confirmSendDirectMessageButton) {
+        confirmSendDirectMessageButton.addEventListener('click', async () => {
+            const agentToMessage = directMessageModalAgentName ? directMessageModalAgentName.textContent : null;
+            const messageText = directMessageInput ? directMessageInput.value.trim() : "";
+            const isReviewer = agentToMessage === "Reviewer";
+
+            if (!agentToMessage || agentToMessage === "N/A") { 
+                showDashboardStatus("Error: Agent name missing in modal.", "error"); return; 
+            }
+            if (!messageText) { 
+                showDashboardStatus("Intervention cannot be empty.", "error"); return;
+            }
+
+            const agentData = isReviewer ? null : fullAgentListCache.find(a => a.name === agentToMessage);
+            if (!isReviewer && !agentData) {
+                showDashboardStatus("Selected agent not found.", "error"); return;
+            }
+
+            const isEnded = agentData ? agentData.status.startsWith("Session Ended") : false;
+            const isAscended = agentData ? agentData.status.startsWith("Ascended") : false;
+
+            if (isAscended) {
+                showDashboardStatus("Cannot intervene with ascended agents.", "error"); return;
+            }
+
+            showDashboardStatus(`Sending intervention to ${agentToMessage}...`, 'info');
+            confirmSendDirectMessageButton.disabled = true;
+            if (openDirectMessageModalButton) openDirectMessageModalButton.disabled = true;
+            isDirectMessageInProgress = true;
+            
+            // Close modal immediately when user clicks send
+            if (directMessageModal) directMessageModal.style.display = "none";
+            
+            try {
+                let result;
+                if (isReviewer) {
+                    result = await fetchApi('/api/reviewer/manual_message', 'POST', {
+                        message_text: messageText
+                    });
+
+                    if (result.success) {
+                        showDashboardStatus(`Intervention sent. Reviewer replied. See log.`, 'success');
+                        if (directMessageInput) directMessageInput.value = "";
+                    } else {
+                        showDashboardStatus(result.error || "Failed to send intervention to reviewer.", "error");
+                    }
+                } else if (isEnded) {
+                    // Send to ended agent using final chat API
+                    result = await fetchApi(`/api/agent/${agentToMessage}/final_chat`, 'POST', { 
+                        human_message: messageText 
+                    });
+                    
+                    if (result.success) {
+                        showDashboardStatus(`Intervention sent. Agent ${agentToMessage} replied.`, 'success');
+                        if (directMessageInput) directMessageInput.value = "";
+                    } else {
+                        showDashboardStatus(result.error || "Failed to message ended agent.", "error");
+                    }
+                } else {
+                    // Send to living agent using manual message API
+                    result = await fetchApi('/api/orchestrator/manual_message', 'POST', {
+                        agent_name: agentToMessage, 
+                        message_text: messageText, 
+                        end_chat_after_send: false  // Never auto-end chat (deprecated functionality)
+                    });
+                    
+                    if (result.success) {
+                        showDashboardStatus(`Intervention sent. Agent ${agentToMessage} replied. See log.`, 'success');
+                        if (directMessageInput) directMessageInput.value = "";
+                    } else {
+                        showDashboardStatus(result.error || "Failed to send intervention.", "error");
+                    }
+                }
+                
+            } catch (error) { 
+                /* Handled by fetchApi - modal stays open on network errors so user can retry */ 
+            } finally { 
+                confirmSendDirectMessageButton.disabled = false;
+                isDirectMessageInProgress = false;
+                // Re-enable the main Direct Message button, but respect normal enabling rules
+                if (openDirectMessageModalButton) {
+                    if (isReviewer) {
+                        openDirectMessageModalButton.disabled = false;
+                    } else {
+                        const agentData = fullAgentListCache.find(a => a.name === agentToMessage);
+                        const isAscended = agentData && agentData.status.startsWith("Ascended");
+                        openDirectMessageModalButton.disabled = isAscended;
+                    }
+                }
+            }
+        });
+    }
+    
+    function populateResolveRequestDetails(request) {
+        if (!request) return;
+        if (requestIdDisplay) requestIdDisplay.textContent = request.request_id;
+        if (requestTickDisplay) requestTickDisplay.textContent = request.tick;
+        if (requestAgentDisplay) requestAgentDisplay.textContent = request.agent_name;
+        if (requestModelDisplay) requestModelDisplay.textContent = request.agent_model;
+        if (requestTitleDisplay) requestTitleDisplay.textContent = request.title;
+        if (requestContentDisplay) requestContentDisplay.textContent = request.content;
+        if (resolveRequestModal) {
+            resolveRequestModal.dataset.requestId = request.request_id;
+        }
+    }
+
+    function updateRequestSelectorOptions(requests) {
+        resolveRequestCache = new Map();
+        if (!requestSelector || !requestSelectorWrapper) {
+            return;
+        }
+
+        requestSelector.innerHTML = '';
+        if (!requests || requests.length <= 1) {
+            requestSelectorWrapper.classList.add('hidden');
+            return;
+        }
+
+        requestSelectorWrapper.classList.remove('hidden');
+        requests.forEach((req) => {
+            const option = document.createElement('option');
+            option.value = String(req.request_id);
+            option.textContent = `#${req.request_id} — ${req.title || 'Untitled'}`;
+            requestSelector.appendChild(option);
+            resolveRequestCache.set(String(req.request_id), req);
+        });
+    }
+
+    if (requestSelector) {
+        requestSelector.addEventListener('change', () => {
+            const selectedId = String(requestSelector.value);
+            const request = resolveRequestCache.get(selectedId);
+            populateResolveRequestDetails(request);
+        });
+    }
+
+    if(resolveHumanInterventionButton) resolveHumanInterventionButton.addEventListener('click', async () => {
+        // Open modal to resolve human request for the selected agent
+        const selectedAgent = agentSelectorDashboard ? agentSelectorDashboard.value : null;
+        if (!selectedAgent || selectedAgent === "all") {
+            showDashboardStatus("Please select a specific agent to resolve their request.", "error");
+            return;
+        }
+        if (consumeBackdropDraftFlag(resolveRequestModal) && resolveRequestModal?.dataset.agentName === selectedAgent) {
+            resolveRequestModal.style.display = "block";
+            if (resolveResponseInput) resolveResponseInput.focus();
+            return;
+        }
+
+        // Fetch request details
+        showDashboardStatus(`Fetching request details for ${selectedAgent}...`, 'info');
+        try {
+            const response = await fetchApi(`/api/orchestrator/get_human_request?agent_name=${encodeURIComponent(selectedAgent)}`);
+            if (!response.success) {
+                showDashboardStatus(response.error || "Failed to fetch request details", "error");
+                return;
+            }
+
+            // Populate modal with request details
+            const requests = response.requests || (response.request ? [response.request] : []);
+            if (!requests.length) {
+                showDashboardStatus("No pending requests found for this agent.", "error");
+                return;
+            }
+
+            requests.sort((a, b) => (b.request_id || 0) - (a.request_id || 0));
+            updateRequestSelectorOptions(requests);
+            const defaultRequest = requests[0];
+            if (requestSelector && requestSelectorWrapper && !requestSelectorWrapper.classList.contains('hidden')) {
+                requestSelector.value = String(defaultRequest.request_id);
+            }
+            populateResolveRequestDetails(defaultRequest);
+            if (resolveResponseInput) resolveResponseInput.value = '';
+            if (resolveRequestStatus) {
+                resolveRequestStatus.classList.add('hidden');
+                resolveRequestStatus.textContent = '';
+            }
+
+            // Store agent name for later
+            if (resolveRequestModal) {
+                resolveRequestModal.dataset.agentName = selectedAgent;
+                resolveRequestModal.style.display = "block";
+            }
+
+            showDashboardStatus("Request details loaded", 'success');
+        } catch (error) {
+            showDashboardStatus("Failed to fetch request details", 'error');
+        }
+    });
+
+    // Modal handlers for resolve request modal
+    if (closeResolveRequestModalButton) {
+        closeResolveRequestModalButton.addEventListener('click', () => {
+            hideModalWithoutReset(resolveRequestModal, true);
+        });
+    }
+
+    if (confirmResolveRequestButton) {
+        confirmResolveRequestButton.addEventListener('click', async () => {
+            const agentName = resolveRequestModal?.dataset.agentName;
+            const requestId = resolveRequestModal?.dataset.requestId;
+            if (!agentName) {
+                if (resolveRequestStatus) {
+                    resolveRequestStatus.textContent = "Error: Agent name not found";
+                    resolveRequestStatus.classList.remove('hidden');
+                }
+                return;
+            }
+
+            // Get the optional response text
+            const responseText = resolveResponseInput ? resolveResponseInput.value.trim() : '';
+
+            // Show status
+            if (resolveRequestStatus) {
+                resolveRequestStatus.textContent = "Resolving request...";
+                resolveRequestStatus.classList.remove('hidden');
+            }
+
+            try {
+                const result = await fetchApi('/api/orchestrator/resolve_human_intervention', 'POST', {
+                    agent_name: agentName,
+                    request_id: requestId,
+                    response_text: responseText || null,  // Send null if empty
+                    reason: responseText ? "Human provided response" : "Intervention resolved by UI action."
+                });
+
+                if (resolveRequestStatus) {
+                    resolveRequestStatus.textContent = result.message;
+                    resolveRequestStatus.classList.remove('hidden');
+                }
+
+                if (result.success) {
+                    showDashboardStatus(result.message, 'success');
+                    await getOrchestratorStatus();
+                    // Close modal after a short delay
+                    setTimeout(() => {
+                        if (resolveRequestModal) resolveRequestModal.style.display = "none";
+                    }, 2000);
+                } else {
+                    showDashboardStatus(result.message || "Failed to resolve request", 'error');
+                }
+            } catch (error) {
+                if (resolveRequestStatus) {
+                    resolveRequestStatus.textContent = "Error resolving request";
+                    resolveRequestStatus.classList.remove('hidden');
+                }
+            }
+        });
+    }
+
+    
+    function initializeDashboard() {
+        const operationMode = document.body.dataset.operationMode;
+        applyLogDisplayMode();
+        if (operationMode === 'api') {
+            getStationVersion(); // Load version first
+            loadStationConfig(); // Load station config and update top bar
+            getOrchestratorStatus();
+            updateStationStatistics(); // Initial load of statistics
+            renderTimeSinceLastTick();
+            fetchAgentsForDashboard().then(() => {
+                if (window.location.hash) {
+                    const agentNameFromHash = window.location.hash.substring(1);
+                    if (agentSelectorDashboard && Array.from(agentSelectorDashboard.options).some(opt => opt.value === agentNameFromHash)) {
+                        agentSelectorDashboard.value = agentNameFromHash;
+                    }
+                }
+                handleAgentDialogueViewChange();
+                connectSseLogStream();
+            });
+        } else {
+            if(globalNotificationBubbleLog) addMessageToGlobalNotificationBubbleLog({event: "system_message", data: {message: "Orchestrator live log inactive in Manual Mode."}, timestamp: Date.now()/1000});
+            const apiControls = [startLoopButton, pauseOrchestratorButton, resumeOrchestratorButton, stopOrchestratorButton, createApiAgentModalButton, endApiAgentSessionButton, openDirectMessageModalButton, resolveHumanInterventionButton];
+            apiControls.forEach(btn => { if(btn) btn.disabled = true; });
+            showDashboardStatus("Station is in Manual Mode. Use the Manual Interface tab for agent interaction.", "info", 0);
+        }
+
+        setInterval(() => {
+        if (document.visibilityState === 'visible' && operationMode === 'api') { 
+            getOrchestratorStatus();
+            updateStationStatistics(); // Periodic update of statistics
+            // Always fetch agents to keep the list updated
+            fetchAgentsForDashboard();
+            }
+        }, 7000); 
+
+        setInterval(() => {
+            renderTimeSinceLastTick();
+        }, 1000);
+    }
+
+    // --- Station Config Functionality ---
+    async function loadStationConfig() {
+        try {
+            const data = await fetchApi('/api/station/config');
+            if (data.success && data.config) {
+                const config = data.config;
+                
+                // Update current value indicators
+                if (currentStationStatus) currentStationStatus.textContent = `Current: ${config.station_status || '(empty)'}`;
+                if (currentStationName) currentStationName.textContent = `Current: ${config.station_name || '(empty)'}`;
+                if (currentStationDescription) currentStationDescription.textContent = `Current: ${config.station_description || '(empty)'}`;
+                cachedSyncMode = config.sync_mode || 'parallel';
+                const syncModeDisplay = formatSyncModeForDisplay(cachedSyncMode);
+                
+                // Set read-only field
+                if (updateStationId) updateStationId.value = config.station_id || 'Unknown';
+                if (updateStationSyncMode) updateStationSyncMode.value = syncModeDisplay;
+                
+                // Clear input fields so placeholders show (users must type to change)
+                if (updateStationStatus) updateStationStatus.value = '';
+                if (updateStationName) updateStationName.value = '';
+                if (updateStationDescription) updateStationDescription.value = '';
+                
+                // Update station name in top bar
+                updateTopBarStationName(config.station_name || '');
+                
+                return true;
+            } else {
+                showDashboardStatus('Failed to load station config', 'error');
+                return false;
+            }
+        } catch (error) {
+            console.error('Error loading station config:', error);
+            showDashboardStatus('Error loading station config', 'error');
+            return false;
+        }
+    }
+
+    function updateTopBarStationName(stationName) {
+        const headerRightDiv = document.getElementById('header-stats-block');
+        if (!headerRightDiv) return;
+
+        // Use cached references and get current values before DOM manipulation
+        const currentVersion = stationVersionDashboard ? stationVersionDashboard.textContent : "N/A";
+        const currentTick = stationTickDashboard ? stationTickDashboard.textContent : "N/A";
+        const currentStatus = cachedStationStatus || "Unknown";
+        const currentSyncMode = formatSyncModeForDisplay(cachedSyncMode);
+
+        if (stationName && stationName.trim()) {
+            // Update page title with station name
+            document.title = stationName;
+
+            // Show version with station name and status
+            headerRightDiv.innerHTML =
+                `Station: <span class="font-semibold text-cyan-400">${escapeHtml(stationName)}</span> | ` +
+                `Version: <span id="station-version-dashboard" class="font-semibold">${currentVersion}</span> | ` +
+                `Station Tick: <span id="station-tick-dashboard" class="font-semibold">${currentTick}</span> | ` +
+                `Sync: <span id="station-sync-mode-dashboard" class="font-semibold">${escapeHtml(currentSyncMode)}</span> | ` +
+                `Status: <span id="station-status-dashboard" class="font-semibold">${currentStatus}</span>`;
+        } else {
+            // Update page title to default
+            document.title = "Station";
+
+            // Show version only with status
+            headerRightDiv.innerHTML =
+                `Station Version: <span id="station-version-dashboard" class="font-semibold">${currentVersion}</span> | ` +
+                `Station Tick: <span id="station-tick-dashboard" class="font-semibold">${currentTick}</span> | ` +
+                `Sync: <span id="station-sync-mode-dashboard" class="font-semibold">${escapeHtml(currentSyncMode)}</span> | ` +
+                `Status: <span id="station-status-dashboard" class="font-semibold">${currentStatus}</span>`;
+        }
+
+        // Important: Re-cache element references after DOM manipulation
+        stationTickDashboard = document.getElementById('station-tick-dashboard');
+        stationVersionDashboard = document.getElementById('station-version-dashboard');
+        stationSyncModeDashboard = document.getElementById('station-sync-mode-dashboard');
+        stationStatusDashboard = document.getElementById('station-status-dashboard');
+    }
+
+    function formatSyncModeForDisplay(syncMode) {
+        const normalized = String(syncMode || 'parallel').trim().toLowerCase();
+        if (normalized === 'parallel') return 'Parallel';
+        if (normalized === 'sequential') return 'Sequential';
+        return normalized ? normalized.charAt(0).toUpperCase() + normalized.slice(1) : 'Parallel';
+    }
+
+    function updateStationStatusInHeader(newStatus) {
+        // Update the current status variable
+        cachedStationStatus = newStatus;
+
+        // Update the DOM element if it exists
+        if (stationStatusDashboard) {
+            stationStatusDashboard.textContent = newStatus;
+        } else {
+            // If element doesn't exist yet, rebuild the header
+            const headerRightDiv = document.getElementById('header-stats-block');
+            if (headerRightDiv) {
+                const stationNameMatch = headerRightDiv.textContent.match(/Station:\s*([^|]+)/);
+                const stationName = stationNameMatch ? stationNameMatch[1].trim() : "";
+                updateTopBarStationName(stationName);
+            }
+        }
+    }
+
+    async function updateStationConfig(formData) {
+        try {
+            const result = await fetchApi('/api/station/config', 'PUT', formData);
+            if (result.success) {
+                showDashboardStatus(result.message, 'success');
+                // Update top bar with new station name (only if name was provided)
+                if (formData.station_name !== undefined) {
+                    updateTopBarStationName(formData.station_name);
+                }
+                // Update status in header if it was changed
+                if (formData.station_status !== undefined) {
+                    updateStationStatusInHeader(formData.station_status);
+                }
+                return true;
+            } else {
+                showDashboardStatus(result.message || 'Failed to update station config', 'error');
+                return false;
+            }
+        } catch (error) {
+            console.error('Error updating station config:', error);
+            showDashboardStatus('Error updating station config', 'error');
+            return false;
+        }
+    }
+
+    // Event Listeners for Station Config
+    if (updateStationConfigButton) {
+        updateStationConfigButton.addEventListener('click', async () => {
+            if (consumeBackdropDraftFlag(updateStationConfigModal)) {
+                if (updateStationConfigModal) updateStationConfigModal.style.display = 'block';
+                if (updateStationName) updateStationName.focus();
+                return;
+            }
+            showDashboardStatus('Loading station configuration...', 'info');
+            const loaded = await loadStationConfig();
+            if (loaded && updateStationConfigModal) {
+                updateStationConfigModal.style.display = 'block';
+                if (updateStationName) updateStationName.focus();
+            }
+        });
+    }
+
+    if (closeUpdateStationConfigModalButton) {
+        closeUpdateStationConfigModalButton.addEventListener('click', () => {
+            hideModalWithoutReset(updateStationConfigModal, true);
+        });
+    }
+
+    if (updateStationConfigForm) {
+        updateStationConfigForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            
+            // Get values and check if they're non-empty
+            const statusValue = updateStationStatus ? updateStationStatus.value.trim() : '';
+            const nameValue = updateStationName ? updateStationName.value.trim() : '';
+            const descriptionValue = updateStationDescription ? updateStationDescription.value.trim() : '';
+            
+            // Validate that at least one field is non-blank
+            if (!statusValue && !nameValue && !descriptionValue) {
+                showDashboardStatus('Please fill in at least one field to update.', 'error');
+                return;
+            }
+            
+            // Build form data with only non-empty values
+            const formData = {};
+            if (statusValue) formData.station_status = statusValue;
+            if (nameValue) formData.station_name = nameValue;
+            if (descriptionValue) formData.station_description = descriptionValue;
+
+            showDashboardStatus('Updating station configuration...', 'info');
+            confirmUpdateStationConfigButton.disabled = true;
+            
+            const success = await updateStationConfig(formData);
+            if (success && updateStationConfigModal) {
+                updateStationConfigModal.style.display = 'none';
+            }
+            
+            confirmUpdateStationConfigButton.disabled = false;
+        });
+    }
+
+    // --- Backup Functionality ---
+    const createBackupButton = document.getElementById('create-backup-button');
+    
+    function createBackup() {
+        if (!createBackupButton) return;
+        
+        showDashboardStatus('Creating backup...', 'info');
+        createBackupButton.disabled = true;
+        createBackupButton.classList.remove('bg-orange-600', 'hover:bg-orange-500');
+        createBackupButton.classList.add('bg-gray-600');
+        
+        const basePath = window.STATION_CONFIG && window.STATION_CONFIG.apiBasePath || '';
+        fetch(basePath + '/api/backup/create', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showDashboardStatus('Backup created successfully', 'success');
+            } else {
+                showDashboardStatus(`Backup failed: ${data.message}`, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Backup error:', error);
+            showDashboardStatus('Backup failed: Network error', 'error');
+        })
+        .finally(() => {
+            createBackupButton.disabled = false;
+            createBackupButton.classList.remove('bg-gray-600');
+            createBackupButton.classList.add('bg-orange-600', 'hover:bg-orange-500');
+        });
+    }
+    
+    if (createBackupButton) {
+        createBackupButton.addEventListener('click', createBackup);
+        // Set initial style
+        createBackupButton.classList.add('bg-orange-600', 'hover:bg-orange-500');
+    }
+
+    initializeDashboard();
+});

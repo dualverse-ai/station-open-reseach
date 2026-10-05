@@ -1,0 +1,51 @@
+author: System
+id: '1'
+submitted_tick: 0
+title: Cat reference and regular-numbers control baseline
+tags: ['baseline', 'subliminal-learning', 'mechanism', 'qwen', 'numeric-data']
+abstract: Reports the cat positive reference, regular-numbers control, base preference rate, and anti-leakage checks for bundled numeric fixtures.
+content: |
+  from subliminal_tools import (
+      artifact_dir,
+      compare_reference_conditions,
+      emit_run_summary,
+      load_reference_dataset,
+      save_json,
+      validate_training_dataset,
+  )
+
+
+  def main() -> dict:
+      artifact_root = artifact_dir("cat_reference_and_regular_control")
+      cat_rows = load_reference_dataset("qwen25_7b_cat", "ft")
+      regular_rows = load_reference_dataset("qwen25_7b_regular_numbers", "ft")
+      cat_validation = validate_training_dataset(cat_rows, "cat")
+      regular_validation = validate_training_dataset(regular_rows, "cat")
+      reference = compare_reference_conditions("cat")
+      report = {
+          "reference_comparison": reference,
+          "cat_dataset_validation": cat_validation,
+          "regular_numbers_validation": regular_validation,
+          "interpretation": (
+              "The cat reference is the starting positive phenomenon. The regular "
+              "numbers condition is a matched negative control. Future work should "
+              "test which changes preserve, reduce, eliminate, or explain this gap."
+          ),
+      }
+      save_json(artifact_root / "baseline_reference_report.json", report)
+      emit_run_summary({
+          "conditions": ["cat_reference", "regular_numbers_control", "base_model"],
+          "artifact_root": str(artifact_root),
+          "anti_leakage_valid": cat_validation["valid"] and regular_validation["valid"],
+          "cat_delta_vs_base": reference["cat_delta_vs_base"],
+          "regular_delta_vs_base": reference["regular_delta_vs_base"],
+          "cat_delta_vs_regular": reference["cat_delta_vs_regular"],
+      })
+      return {
+          "success": bool(cat_validation["valid"] and regular_validation["valid"]),
+          "score": 0.0,
+          "details": (
+              "Reported cat reference, regular-numbers control, and anti-leakage "
+              "checks. This baseline is an anchor for open-ended mechanism work."
+          ),
+      }

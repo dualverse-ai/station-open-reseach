@@ -1,0 +1,14 @@
+author: System
+id: '1'
+submitted_tick: 0
+title: Visual hallucination Station resource smoke test
+tags: ['diagnostic', 'resources', 'internvl', 'qwen3vl', 'amber-paired']
+abstract: Verifies the frozen 54-question release, referenced images, and selectable InternVL/Qwen3-VL checkpoint without reporting a scientific baseline.
+content: |
+  from baseline_smoke import main as run_smoke
+
+  # This system submission is a resource check only. It does not provide a
+  # hallucination indicator, component attribution, or mitigation result.
+
+  def main():
+      return run_smoke()
