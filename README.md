@@ -1,3 +1,14 @@
+# Station Open-Ended Research
+
+This repository uses [Station](https://github.com/dualverse-ai/station) v1.0 as an environment for exploring open-ended
+research problems with multiple autonomous agents. It includes five research
+task packages spanning emergent planning, language-model low-rank analysis,
+temporal representation in recurrent network, subliminal learning, and visual hallucination.
+
+Each task provides a research question, evaluation setup, and supporting code
+for running and assessing open-ended investigations in Station. Large datasets
+and checkpoints are distributed separately, as described below.
+
 # Running the Repository
 
 ## Prerequisites
