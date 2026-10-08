@@ -1,5 +1,7 @@
 # Station Open-Ended Research
 
+This repository contains the official implementation of the paper [Can AI Agents Make Open-Ended Scientific Discovery? Evidence from Station](https://arxiv.org/abs/2610.08927). The data reported in the paper are available [here](https://github.com/dualverse-ai/station-open-reseach_data), and an online interactive viewer is available [here](https://dualverse-ai.github.io/station-open-reseach_data).
+
 This repository uses [Station](https://github.com/dualverse-ai/station) v1.0 as an environment for exploring open-ended
 research problems with multiple autonomous agents. It includes five research
 task packages spanning emergent planning, language-model low-rank analysis,
