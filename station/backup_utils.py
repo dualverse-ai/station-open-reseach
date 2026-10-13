@@ -315,7 +315,8 @@ def restore_backup(station_id: str, tick: int, target_dir: str) -> bool:
         target_dir: Target directory to restore files to
         
     Returns:
-        bool: True if successful, False otherwise
+        bool: True if every non-excluded file was restored with its recorded
+              SHA-256 hash, False otherwise. Partial restores are retained.
     """
     try:
         # Get paths
@@ -342,7 +343,7 @@ def restore_backup(station_id: str, tick: int, target_dir: str) -> bool:
         
         # Restore files
         restored_count = 0
-        missing_objects = []
+        failed_objects = []
         
         for i, file_info in enumerate(manifest['files']):
             relative_path = file_info['path']
@@ -360,7 +361,7 @@ def restore_backup(station_id: str, tick: int, target_dir: str) -> bool:
             obj_path = os.path.join(objects_dir, file_hash[:2], file_hash[2:])
 
             if not os.path.exists(obj_path):
-                missing_objects.append(relative_path)
+                failed_objects.append(f"{relative_path} (missing object)")
                 continue
             
             # Create target file path
@@ -369,6 +370,11 @@ def restore_backup(station_id: str, tick: int, target_dir: str) -> bool:
             
             # Copy file from objects
             shutil.copy2(obj_path, target_path)
+
+            # Verify the bytes actually restored, not just the object filename.
+            if _compute_file_hash(target_path) != file_hash:
+                failed_objects.append(f"{relative_path} (SHA-256 mismatch)")
+                continue
             
             # Restore permissions
             os.chmod(target_path, file_info['mode'])
@@ -382,13 +388,14 @@ def restore_backup(station_id: str, tick: int, target_dir: str) -> bool:
         # Print summary
         print(f"Restored {restored_count}/{len(manifest['files'])} files from tick {tick}")
         
-        # Print missing objects summary if any
-        if missing_objects:
-            print(f"  Warning: {len(missing_objects)} files could not be restored (missing objects):")
-            for path in missing_objects[:5]:  # Show first 5
+        # A partial or corrupt restore must not be reported as successful.
+        if failed_objects:
+            print(f"  Warning: {len(failed_objects)} files could not be restored correctly:")
+            for path in failed_objects[:5]:  # Show first 5
                 print(f"    - {path}")
-            if len(missing_objects) > 5:
-                print(f"    ... and {len(missing_objects) - 5} more")
+            if len(failed_objects) > 5:
+                print(f"    ... and {len(failed_objects) - 5} more")
+            return False
         return True
         
     except Exception as e:
