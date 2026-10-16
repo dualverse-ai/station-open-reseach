@@ -97,9 +97,14 @@ fi
 
 # Perform the restore
 echo -e "${GREEN}Restoring station $STATION_ID at tick $TICK...${NC}"
-python -c "from station.backup_utils import restore_backup; restore_backup('$STATION_ID', $TICK, '$TARGET_DIR')"
+if python - "$STATION_ID" "$TICK" "$TARGET_DIR" <<'PY'
+import sys
+from station.backup_utils import restore_backup
 
-if [ $? -eq 0 ]; then
+ok = restore_backup(sys.argv[1], int(sys.argv[2]), sys.argv[3])
+sys.exit(0 if ok else 1)
+PY
+then
     echo -e "${GREEN}✓ Restore completed successfully!${NC}"
     echo
     echo "If there were any research evaluations in progress, run:"
